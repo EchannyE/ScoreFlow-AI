@@ -46,6 +46,10 @@ app.use('/api/notifications', notificationRoutes)
 app.get('/api/health', (_, res) =>
   res.json({ status: 'ok', ts: new Date().toISOString() })
 )
+
+app.get("/", (req, res) => {
+  res.json({ status: "OK", service: "ScoreFlow API" });
+});
  
 // ── Error handler 
 app.use(errorHandler)

@@ -19,6 +19,10 @@ import notificationRoutes from './routes/notification.routes.js'
  
 const app  = express()
 const PORT = process.env.PORT ?? 8080
+
+// ── Trust Render's proxy ──────
+app.set('trust proxy', 1)
+
 const isDevelopment = process.env.NODE_ENV !== 'production'
 const apiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

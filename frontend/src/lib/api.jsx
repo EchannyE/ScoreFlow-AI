@@ -1,4 +1,9 @@
 import axios from 'axios'
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  timeout: 10000,
+});
  
 const unwrapResponse = response => ({
   ...response,
@@ -9,10 +14,7 @@ const get = (url, config) => api.get(url, config).then(unwrapResponse)
 const post = (url, data, config) => api.post(url, data, config).then(unwrapResponse)
 const patch = (url, data, config) => api.patch(url, data, config).then(unwrapResponse)
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  timeout: 10000,
-});
+
  
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('sf_token')

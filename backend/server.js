@@ -34,6 +34,14 @@ app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }))
 app.use(express.json({ limit: '10mb' }))
 app.use(morgan('dev'))
 app.use('/api', apiRateLimiter)
+
+app.get("/", (req, res) => {
+  res.send("API running");
+});
+
+app.head("/", (req, res) => {
+  res.status(200).end();
+});
  
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',          authRoutes)

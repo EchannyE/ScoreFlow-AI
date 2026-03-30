@@ -10,9 +10,9 @@ const post = (url, data, config) => api.post(url, data, config).then(unwrapRespo
 const patch = (url, data, config) => api.patch(url, data, config).then(unwrapResponse)
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? '/api',
-  timeout: 10_000,
-})
+  baseURL: import.meta.env.VITE_API_URL,
+  timeout: 10000,
+});
  
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('sf_token')

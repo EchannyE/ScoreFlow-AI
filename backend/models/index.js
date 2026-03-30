@@ -1,13 +1,13 @@
-const Campaign = require('./Campaign');
-const Evaluation = require('./Evaluation');
-const Notification = require('./Notification');
-const Submissions = require('./Submissions');
-const User = require('./User');
+import Campaign from './Campaign.js'
+import Evaluation from './Evaluation.js'
+import Notification from './Notification.js'
+import Submissions from './Submissions.js'
+import User from './User.js'
 
-module.exports = {
+export {
   Campaign,
   Evaluation,
   Notification,
   Submissions,
   User,
-};
+}

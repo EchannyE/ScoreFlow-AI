@@ -18,7 +18,7 @@ export default defineConfig({
     host: true,       // Helpful for testing the UI on mobile devices in your network
     proxy: {
       '/api': { 
-        target: 'http://localhost:8080', 
+        target: 'https://scoreflow-ai.onrender.com/', 
         changeOrigin: true,
         secure: false, // Useful if your local backend doesn't have SSL yet
       },

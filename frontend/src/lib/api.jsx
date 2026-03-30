@@ -32,43 +32,43 @@ api.interceptors.response.use(
 )
  
 export const authAPI = {
-  login:    data => post('/auth/login', data),
-  register: data => post('/auth/register', data),
-  me:       ()   => get('/auth/me'),
+  login:    data => post('/api/auth/login', data),
+  register: data => post('/api/auth/register', data),
+  me:       ()   => get('/api/auth/me'),
 }
  
 export const campaignsAPI = {
-  list:   params     => get('/campaigns', { params }),
-  get:    id         => get(`/campaigns/${id}`),
-  create: data       => post('/campaigns', data),
-  update: (id, data) => patch(`/campaigns/${id}`, data),
-  stats:  id         => get(`/campaigns/${id}/stats`),
+  list:   params     => get('/api/campaigns', { params }),
+  get:    id         => get(`/api/campaigns/${id}`),
+  create: data       => post('/api/campaigns', data),
+  update: (id, data) => patch(`/api/campaigns/${id}`, data),
+  stats:  id         => get(`/api/campaigns/${id}/stats`),
 }
  
 export const submissionsAPI = {
-  list:   params     => get('/submissions', { params }),
-  mine:   ()         => get('/submissions/mine'),
-  get:    id         => get(`/submissions/${id}`),
-  create: data       => post('/submissions', data),
-  assign: (id, evaluatorId) => patch(`/submissions/${id}/assign`, { evaluatorId }),
-  update: (id, data) => patch(`/submissions/${id}`, data),
+  list:   params     => get('/api/submissions', { params }),
+  mine:   ()         => get('/api/submissions/mine'),
+  get:    id         => get(`/api/submissions/${id}`),
+  create: data       => post('/api/submissions', data),
+  assign: (id, evaluatorId) => patch(`/api/submissions/${id}/assign`, { evaluatorId }),
+  update: (id, data) => patch(`/api/submissions/${id}`, data),
 }
  
 export const evaluationsAPI = {
-  myQueue: ()     => get('/evaluations/my-queue'),
-  list:    params => get('/evaluations', { params }),
-  create:  data   => post('/evaluations', data),
+  myQueue: ()     => get('/api/evaluations/my-queue'),
+  list:    params => get('/api/evaluations', { params }),
+  create:  data   => post('/api/evaluations', data),
 }
  
 export const notificationsAPI = {
-  list:        ()  => get('/notifications'),
-  markRead:    id  => patch(`/notifications/${id}/read`),
-  markAllRead: ()  => patch('/notifications/read-all'),
+  list:        ()  => get('/api/notifications'),
+  markRead:    id  => patch(`/api/notifications/${id}/read`),
+  markAllRead: ()  => patch('/api/notifications/read-all'),
 }
 
 export const usersAPI = {
-  list: params => get('/users', { params }),
-  get:  id     => get(`/users/${id}`),
+  list: params => get('/api/users', { params }),
+  get:  id     => get(`/api/users/${id}`),
 }
  
 export default api

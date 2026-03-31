@@ -46,7 +46,7 @@ export default function NewSubmission() {
     campaignId: '',
     track: '',
     description: '',
-    github/ project Url: '',
+    githubUrl: '',
     demoUrl: ''
   })
 

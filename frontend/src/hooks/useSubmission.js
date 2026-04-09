@@ -1,56 +1,136 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { submissionsAPI } from '../lib/api.jsx'
- 
+
 export function useSubmissions(params = {}) {
   const paramsKey = JSON.stringify(params)
   const stableParams = useMemo(() => JSON.parse(paramsKey), [paramsKey])
+
   const [submissions, setSubmissions] = useState([])
-  const [loading, setLoading]         = useState(true)
-  const [error, setError]             = useState(null)
- 
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const normalizeListResponse = payload => {
+    if (Array.isArray(payload)) return payload
+    if (Array.isArray(payload?.submissions)) return payload.submissions
+    if (Array.isArray(payload?.data?.submissions)) return payload.data.submissions
+    if (Array.isArray(payload?.data)) return payload.data
+    return []
+  }
+
+  const normalizeSingleResponse = payload => {
+    return payload?.data ?? payload
+  }
+
   const load = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
-      const { data } = await submissionsAPI.list(stableParams)
-      setSubmissions(data.submissions ?? data)
+
+      const response = await submissionsAPI.list(stableParams)
+      setSubmissions(normalizeListResponse(response.data))
     } catch (e) {
-      setError(e.message)
+      setError(e.response?.data?.message ?? e.message ?? 'Failed to load submissions')
     } finally {
       setLoading(false)
     }
   }, [stableParams])
- 
-  useEffect(() => { load() }, [load])
- 
+
+  useEffect(() => {
+    load()
+  }, [load])
+
   const createSubmission = async data => {
-    const { data: created } = await submissionsAPI.create(data)
-    setSubmissions(prev => [created, ...prev])
-    return created
+    try {
+      const response = await submissionsAPI.create(data)
+      const created = normalizeSingleResponse(response.data)
+
+      setSubmissions(prev => [created, ...prev])
+      return created
+    } catch (e) {
+      throw new Error(e.response?.data?.message ?? e.message ?? 'Failed to create submission')
+    }
   }
 
   const assignSubmission = async (submissionId, evaluatorId) => {
-    const { data: updated } = await submissionsAPI.assign(submissionId, evaluatorId)
-    setSubmissions(prev => prev.map(submission => (
-      submission._id === submissionId ? updated : submission
-    )))
-    return updated
+    try {
+      const response = await submissionsAPI.assign(submissionId, evaluatorId)
+      const updated = normalizeSingleResponse(response.data)
+
+      setSubmissions(prev =>
+        prev.map(submission =>
+          submission._id === submissionId ? updated : submission
+        )
+      )
+
+      return updated
+    } catch (e) {
+      throw new Error(e.response?.data?.message ?? e.message ?? 'Failed to assign submission')
+    }
   }
- 
-  return { submissions, loading, error, refetch: load, createSubmission, assignSubmission }
-}
- 
-export function useMySubmissions() {
-  const [submissions, setSubmissions] = useState([])
-  const [loading, setLoading]         = useState(true)
- 
-  useEffect(() => {
-    submissionsAPI.mine()
-      .then(({ data }) => setSubmissions(data))
-      .finally(() => setLoading(false))
-  }, [])
- 
-  return { submissions, loading }
+
+  const updateSubmission = async (submissionId, data) => {
+    try {
+      const response = await submissionsAPI.update(submissionId, data)
+      const updated = normalizeSingleResponse(response.data)
+
+      setSubmissions(prev =>
+        prev.map(submission =>
+          submission._id === submissionId ? updated : submission
+        )
+      )
+
+      return updated
+    } catch (e) {
+      throw new Error(e.response?.data?.message ?? e.message ?? 'Failed to update submission')
+    }
+  }
+
+  return {
+    submissions,
+    loading,
+    error,
+    refetch: load,
+    createSubmission,
+    assignSubmission,
+    updateSubmission,
+  }
 }
 
+export function useMySubmissions() {
+  const [submissions, setSubmissions] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const normalizeMineResponse = payload => {
+    if (Array.isArray(payload)) return payload
+    if (Array.isArray(payload?.data)) return payload.data
+    if (Array.isArray(payload?.submissions)) return payload.submissions
+    return []
+  }
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const response = await submissionsAPI.mine()
+      setSubmissions(normalizeMineResponse(response.data))
+    } catch (e) {
+      setError(e.response?.data?.message ?? e.message ?? 'Failed to load your submissions')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  return {
+    submissions,
+    loading,
+    error,
+    refetch: load,
+  }
+}
  

@@ -1,5 +1,5 @@
-import Evaluation   from '../models/Evaluation.js'
-import Submission   from '../models/Submissions.js'
+import Evaluation from '../models/Evaluation.js'
+import Submission from '../models/Submissions.js'
 import Notification from '../models/Notification.js'
 import { markAsScored } from './submissions.service.js'
 
@@ -14,9 +14,36 @@ export async function getQueue(evaluatorId) {
     status: { $in: ['submitted', 'under_review'] },
     _id: { $nin: done },
   })
-    .populate('submitterId', 'name')
+    .populate('submitterId', 'name email')
+    .populate('assignedEvaluatorId', 'name email expertise')
     .sort({ createdAt: 1 })
     .lean()
+}
+
+// ================================
+// 📌 GET ONE ASSIGNED SUBMISSION
+// ================================
+export async function getAssignedSubmission(submissionId, evaluatorId) {
+  const submission = await Submission.findById(submissionId)
+    .populate('submitterId', 'name email')
+    .populate('assignedEvaluatorId', 'name email expertise')
+    .lean()
+
+  if (!submission) {
+    throw Object.assign(new Error('Submission not found'), { status: 404 })
+  }
+
+  const assignedId =
+    submission.assignedEvaluatorId?._id || submission.assignedEvaluatorId
+
+  if (String(assignedId) !== String(evaluatorId)) {
+    throw Object.assign(
+      new Error('You are not allowed to view this submission'),
+      { status: 403 }
+    )
+  }
+
+  return submission
 }
 
 // ================================
@@ -25,11 +52,12 @@ export async function getQueue(evaluatorId) {
 export const list = (filters = {}) =>
   Evaluation.find(filters)
     .populate('evaluatorId', 'name')
+    .populate('submissionId', 'title track status')
     .sort({ createdAt: -1 })
     .lean()
 
 // ================================
-// 📌 CREATE EVALUATION (CRITICAL FLOW)
+// 📌 CREATE EVALUATION
 // ================================
 export async function create(data, evaluatorId) {
   const submission = await Submission.findById(data.submissionId)
@@ -39,42 +67,41 @@ export async function create(data, evaluatorId) {
   }
 
   if (String(submission.assignedEvaluatorId) !== String(evaluatorId)) {
-    throw Object.assign(new Error('This submission is not assigned to you'), { status: 403 })
+    throw Object.assign(
+      new Error('This submission is not assigned to you'),
+      { status: 403 }
+    )
   }
 
   if (submission.status === 'completed') {
-    throw Object.assign(new Error('Submission already completed'), { status: 400 })
+    throw Object.assign(new Error('Submission already completed'), {
+      status: 400,
+    })
   }
 
-  // ✅ Prevent duplicate evaluation
   const existing = await Evaluation.findOne({
     submissionId: data.submissionId,
-    evaluatorId
+    evaluatorId,
   })
 
   if (existing) {
-    throw Object.assign(new Error('You have already evaluated this submission'), { status: 400 })
+    throw Object.assign(
+      new Error('You have already evaluated this submission'),
+      { status: 400 }
+    )
   }
 
-  // =========================
-  // 🔥 CREATE EVALUATION
-  // =========================
   const evaluation = await Evaluation.create({
-    ...data,
-    evaluatorId
+    submissionId: data.submissionId,
+    campaignId: data.campaignId || submission.campaignId,
+    evaluatorId,
+    scores: data.scores,
+    note: data.note || '',
+    status: data.status || 'submitted',
   })
 
-  // =========================
-  // 🔥 FINALIZE SUBMISSION
-  // =========================
-  await markAsScored(
-    data.submissionId,
-    evaluation.weightedScore
-  )
+  await markAsScored(data.submissionId, evaluation.weightedScore)
 
-  // =========================
-  // 🔔 NOTIFICATION
-  // =========================
   await Notification.push(
     evaluatorId,
     'success',

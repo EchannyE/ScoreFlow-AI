@@ -7,6 +7,7 @@ import Login from './pages/auth/Login.jsx'
 import Register from './pages/auth/Register.jsx'
 import AdminDashboard from './pages/admin/Dashboard.jsx'
 import AdminCampaigns from './pages/admin/Campaign.jsx'
+import AdminCampaignDetail from './pages/admin/AdminCampaignDetail.jsx'
 import AdminSubmissions from './pages/admin/Submission.jsx'
 import SubmissionDetail from './pages/admin/SubmissionDetail.jsx'
 import AdminEvaluators from './pages/admin/Evaluator.jsx'
@@ -58,6 +59,7 @@ export default function App() {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="campaigns" element={<AdminCampaigns />} />
+          <Route path="campaigns/:id" element={<AdminCampaignDetail />} />
           <Route path="submissions" element={<AdminSubmissions />} />
           <Route path="submissions/:id" element={<SubmissionDetail />} />
           <Route path="evaluators" element={<AdminEvaluators />} />
@@ -91,4 +93,4 @@ export default function App() {
       </Routes>
     </AppProvider>
   )
-   }
+}

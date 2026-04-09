@@ -55,8 +55,13 @@ export default function EvaluatorScore() {
     [scores]
   )
 
-  const aiScore = submission?.ai?.suggestedScore ?? 0
-  const scoreDelta = weightedScore - aiScore
+  const aiScore =
+    submission?.aiStatus === 'completed' &&
+    Number.isFinite(submission?.ai?.suggestedScore)
+      ? submission.ai.suggestedScore
+      : null
+
+  const scoreDelta = aiScore == null ? null : weightedScore - aiScore
 
   const handleSubmit = async () => {
     if (!submission) return
@@ -232,7 +237,7 @@ export default function EvaluatorScore() {
             onSubmit={handleSubmit}
             submitting={submitting}
           />
-          <AIScoreReveal aiScore={submission.ai?.suggestedScore ?? 0} />
+          <AIScoreReveal aiScore={aiScore} />
         </div>
       </div>
 
@@ -341,7 +346,7 @@ export default function EvaluatorScore() {
                       </div>
                       <div className="mx-auto mb-3 flex w-fit items-center justify-center rounded-full border border-purple/15 bg-bg-2/80 p-3">
                         <div className="text-4xl font-display font-black text-white">
-                          {aiScore}
+                          {aiScore ?? '—'}
                         </div>
                       </div>
                       <div className="text-[11px] text-text-3">
@@ -362,11 +367,16 @@ export default function EvaluatorScore() {
                       </div>
                       <div
                         className={`text-2xl font-display font-black ${
-                          scoreDelta >= 0 ? 'text-green' : 'text-red'
+                          scoreDelta == null
+                            ? 'text-text-3'
+                            : scoreDelta >= 0
+                              ? 'text-green'
+                              : 'text-red'
                         }`}
                       >
-                        {scoreDelta > 0 ? '+' : ''}
-                        {scoreDelta}
+                        {scoreDelta == null
+                          ? '—'
+                          : `${scoreDelta > 0 ? '+' : ''}${scoreDelta}`}
                       </div>
                     </div>
                   </div>
@@ -401,4 +411,4 @@ export default function EvaluatorScore() {
       )}
     </div>
   )
-       }
+                      }

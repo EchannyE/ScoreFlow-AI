@@ -12,13 +12,7 @@ export function useSubmissions(params = {}) {
   const normalizeListResponse = payload => {
     if (Array.isArray(payload)) return payload
     if (Array.isArray(payload?.submissions)) return payload.submissions
-    if (Array.isArray(payload?.data?.submissions)) return payload.data.submissions
-    if (Array.isArray(payload?.data)) return payload.data
     return []
-  }
-
-  const normalizeSingleResponse = payload => {
-    return payload?.data ?? payload
   }
 
   const load = useCallback(async () => {
@@ -42,7 +36,7 @@ export function useSubmissions(params = {}) {
   const createSubmission = async data => {
     try {
       const response = await submissionsAPI.create(data)
-      const created = normalizeSingleResponse(response.data)
+      const created = response.data
 
       setSubmissions(prev => [created, ...prev])
       return created
@@ -54,7 +48,7 @@ export function useSubmissions(params = {}) {
   const assignSubmission = async (submissionId, evaluatorId) => {
     try {
       const response = await submissionsAPI.assign(submissionId, evaluatorId)
-      const updated = normalizeSingleResponse(response.data)
+      const updated = response.data
 
       setSubmissions(prev =>
         prev.map(submission =>
@@ -71,7 +65,7 @@ export function useSubmissions(params = {}) {
   const updateSubmission = async (submissionId, data) => {
     try {
       const response = await submissionsAPI.update(submissionId, data)
-      const updated = normalizeSingleResponse(response.data)
+      const updated = response.data
 
       setSubmissions(prev =>
         prev.map(submission =>
@@ -103,7 +97,6 @@ export function useMySubmissions() {
 
   const normalizeMineResponse = payload => {
     if (Array.isArray(payload)) return payload
-    if (Array.isArray(payload?.data)) return payload.data
     if (Array.isArray(payload?.submissions)) return payload.submissions
     return []
   }
@@ -132,5 +125,4 @@ export function useMySubmissions() {
     error,
     refetch: load,
   }
-}
- 
+  }

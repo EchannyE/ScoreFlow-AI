@@ -1,4 +1,4 @@
-export const STATUSES = ['submitted', 'under_review', 'scored']
+export const STATUSES = ['submitted', 'under_review', 'completed']
 
 export const DEFAULT_RUBRIC = [
   {

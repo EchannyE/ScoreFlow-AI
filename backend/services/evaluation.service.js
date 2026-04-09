@@ -1,7 +1,7 @@
 import Evaluation from '../models/Evaluation.js'
 import Submission from '../models/Submissions.js'
 import Notification from '../models/Notification.js'
-import { markAsScored } from './submissions.service.js'
+import { markAsScored } from './submission.service.js'
 
 // ================================
 // 📌 GET EVALUATION QUEUE

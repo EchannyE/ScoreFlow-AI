@@ -1,78 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { useEvaluatorQueue } from '../../hooks/useEvaluation.js'
-import Card        from '../../components/ui/Card.jsx'
-import Badge       from '../../components/ui/Badge.jsx'
-import ScoreRing   from '../../components/ui/ScoreRing.jsx'
-import Button      from '../../components/ui/Button.jsx'
-import Spinner     from '../../components/ui/Spinner.jsx'
-
-export default function EvaluatorQueue() {
-  const { queue, loading } = useEvaluatorQueue()
-
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-      <Spinner size={40} />
-      <span className="text-[10px] text-text-3 font-bold uppercase tracking-widest animate-pulse">
-        Fetching Assignmnts...
-      </span>
-    </div>
-  )
-
-  return (
-    <div className="fade-up space-y-8">
-      {/* Page Header */}
-      <div className="flex justify-between items-end border-b border-white/5 pb-8">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-2 h-2 rounded-full bg-purple shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
-            <span className="text-[10px] text-purple font-bold uppercase tracking-[0.2em]">
-              Evaluation Stream // Queue
-            </span>
-          </div>
-          <h2 className="font-display font-bold text-3xl tracking-tight text-white">
-            My Queue <span className="text-xl text-text-3 font-medium ml-2 opacity-50">({queue.length})</span>
-          </h2>
-        </div>
-        <div className="hidden md:block text-right">
-          <span className="text-[10px] text-text-3 font-bold uppercase tracking-widest block mb-1">Status</span>
-          <Badge type="active">Online & Ready</Badge>
-        </div>
-      </div>
-
-      {/* Empty State */}
-      {queue.length === 0 && (
-        <Card className="flex flex-col items-center justify-center !py-20 bg-bg-2/30">
-          <div className="w-16 h-16 rounded-full bg-green/10 flex items-center justify-center text-green text-3xl mb-6 shadow-inner">
-            ✓
-          </div>
-          <h3 className="text-white font-bold text-lg mb-2">Queue Clear</h3>
-          <p className="text-sm text-text-3 text-center max-w-[280px] leading-relaxed">
-            You've completed all pending evaluations. New entries will appear here as they are submitted.
-          </p>
-        </Card>
-      )}
-
-      {/* Entry List */}
-      <div className="flex flex-col gap-4">
-        {queue.map(s => (
-          <Card key={s._id} hover className={`group !p-6 relative overflow-hidden transition-all duration-300 ${s.flagged ? 'border-red/20' : ''}`}>
-            {/* Background Accent for Hover */}
-            <div className="absolute inset-0 bg-gradient-to-r from-green/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-            
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-6 relative z-10">
-              {/* AI Insight Ring */}
-              <div className="flex-shrink-0 relative">
-                <div className="absolute inset-0 blur-xl bg-purple/10 rounded-full" />
-                <ScoreRing score={s.ai?.suggestedScore ?? 0} size={60} color="#A855F7" strokeWidth={5} />
-                <div className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-bg-2 flex items-center justify-center border border-white/5">
-                  <span className="text-[8px]">🧠</span>
-                </div>
-              </div>
-
-import React from 'react'
-import { Link } from 'react-router-dom'
-import { useEvaluatorQueue } from '../../hooks/useEvaluation.js'
 import Card from '../../components/ui/Card.jsx'
 import Badge from '../../components/ui/Badge.jsx'
 import ScoreRing from '../../components/ui/ScoreRing.jsx'
@@ -132,7 +60,10 @@ export default function EvaluatorQueue() {
             </span>
           </div>
           <h2 className="font-display font-bold text-3xl tracking-tight text-white">
-            My Queue <span className="text-xl text-text-3 font-medium ml-2 opacity-50">({queue.length})</span>
+            My Queue{' '}
+            <span className="text-xl text-text-3 font-medium ml-2 opacity-50">
+              ({queue.length})
+            </span>
           </h2>
         </div>
 
@@ -151,7 +82,8 @@ export default function EvaluatorQueue() {
           </div>
           <h3 className="text-white font-bold text-lg mb-2">Queue Clear</h3>
           <p className="text-sm text-text-3 text-center max-w-[280px] leading-relaxed">
-            You've completed all pending evaluations. New entries will appear here as they are submitted.
+            You've completed all pending evaluations. New entries will appear here as they are
+            submitted.
           </p>
         </Card>
       )}
@@ -173,12 +105,7 @@ export default function EvaluatorQueue() {
               <div className="flex flex-col md:flex-row items-start md:items-center gap-6 relative z-10">
                 <div className="flex-shrink-0 relative">
                   <div className="absolute inset-0 blur-xl bg-purple/10 rounded-full" />
-                  <ScoreRing
-                    score={aiScore}
-                    size={60}
-                    color="#A855F7"
-                    strokeWidth={5}
-                  />
+                  <ScoreRing score={aiScore} size={60} color="#A855F7" strokeWidth={5} />
                   <div className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-bg-2 flex items-center justify-center border border-white/5">
                     <span className="text-[8px]">🧠</span>
                   </div>
@@ -204,7 +131,9 @@ export default function EvaluatorQueue() {
                   </div>
 
                   <p className="text-xs text-text-2 leading-relaxed mb-4 line-clamp-2 italic opacity-80">
-                    {s.ai?.summary || s.fields?.description || 'Entry data is being synchronized for evaluation...'}
+                    {s.ai?.summary ||
+                      s.fields?.description ||
+                      'Entry data is being synchronized for evaluation...'}
                   </p>
 
                   <div className="flex flex-wrap items-center gap-4 mb-3">
@@ -255,9 +184,7 @@ export default function EvaluatorQueue() {
                   <div className="flex flex-wrap gap-3 items-center">
                     <AccessIndicator submission={s} />
                     {s.files?.length > 0 && (
-                      <span className="text-[10px] text-text-3">
-                        Files: {s.files.length}
-                      </span>
+                      <span className="text-[10px] text-text-3">Files: {s.files.length}</span>
                     )}
                   </div>
                 </div>
@@ -282,4 +209,4 @@ export default function EvaluatorQueue() {
       </p>
     </div>
   )
-}
+      }

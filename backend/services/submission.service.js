@@ -2,56 +2,93 @@ import Submission from '../models/Submissions.js'
 import User from '../models/User.js'
 import Notification from '../models/Notification.js'
 import { triggerAIEnrichment } from './enrichment.service.js'
- 
+
+// ================================
+// 📌 GET ALL SUBMISSIONS
+// ================================
 export const list = (filters = {}) =>
   Submission.find(filters)
     .populate('submitterId', 'name email')
     .populate('assignedEvaluatorId', 'name email expertise')
     .sort({ createdAt: -1 })
     .lean()
- 
+
+// ================================
+// 📌 GET SINGLE SUBMISSION
+// ================================
 export async function getById(id) {
   const sub = await Submission.findById(id)
     .populate('submitterId', 'name email')
     .populate('assignedEvaluatorId', 'name email expertise')
     .lean()
-  if (!sub) throw Object.assign(new Error('Submission not found'), { status: 404 })
+
+  if (!sub) {
+    throw Object.assign(new Error('Submission not found'), { status: 404 })
+  }
+
   return sub
 }
- 
+
+// ================================
+// 📌 GET USER SUBMISSIONS
+// ================================
 export const mine = userId =>
-  Submission.find({ submitterId: userId }).sort({ createdAt: -1 }).lean()
- 
-export async function create(data, userId, userInfo = {}) {
-  const sub = await Submission.create({ ...data, submitterId: userId })
- 
-  // Fire-and-forget — submission confirms instantly, AI runs async
-  triggerAIEnrichment(sub._id).catch(e =>
-    console.error('AI enrichment error:', e.message)
-  )
- 
-  // Notify n8n automation for confirmation email
+  Submission.find({ submitterId: userId })
+    .sort({ createdAt: -1 })
+    .lean()
+
+// ================================
+// 📌 CREATE SUBMISSION
+// ================================
+export async function create(data, userId) {
+  const sub = await Submission.create({
+    ...data,
+    submitterId: userId,
+    status: 'submitted'
+  })
+
+  // 🔥 Async AI enrichment (non-blocking)
+  setImmediate(() => {
+    triggerAIEnrichment(sub._id).catch(e =>
+      console.error('AI enrichment error:', e.message)
+    )
+  })
+
+  // 🔗 Trigger n8n (submission created event)
   if (process.env.N8N_SUBMISSION_WEBHOOK) {
     fetch(process.env.N8N_SUBMISSION_WEBHOOK, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        submissionId: sub._id,
-        title: sub.title,
-        ...userInfo,
+        submissionId: sub._id
       }),
-    }).catch(() => {})
+    }).catch(err => {
+      console.error('n8n submission webhook failed:', err.message)
+    })
   }
- 
-  return sub
-}
- 
-export async function update(id, data) {
-  const sub = await Submission.findByIdAndUpdate(id, data, { new: true, runValidators: true })
-  if (!sub) throw Object.assign(new Error('Submission not found'), { status: 404 })
+
   return sub
 }
 
+// ================================
+// 📌 UPDATE SUBMISSION
+// ================================
+export async function update(id, data) {
+  const sub = await Submission.findByIdAndUpdate(id, data, {
+    new: true,
+    runValidators: true
+  })
+
+  if (!sub) {
+    throw Object.assign(new Error('Submission not found'), { status: 404 })
+  }
+
+  return sub
+}
+
+// ================================
+// 📌 ASSIGN EVALUATOR
+// ================================
 export async function assignEvaluator(id, evaluatorId) {
   const [submission, evaluator] = await Promise.all([
     Submission.findById(id),
@@ -66,25 +103,70 @@ export async function assignEvaluator(id, evaluatorId) {
     throw Object.assign(new Error('Evaluator not found or inactive'), { status: 404 })
   }
 
-  if (submission.status === 'scored') {
-    throw Object.assign(new Error('Scored submissions cannot be reassigned'), { status: 400 })
+  if (submission.status === 'completed') {
+    throw Object.assign(new Error('Completed submissions cannot be reassigned'), { status: 400 })
   }
 
   submission.assignedEvaluatorId = evaluator._id
   submission.assignedAt = new Date()
   submission.status = 'under_review'
+
   await submission.save()
 
+  // 🔔 In-app notification
   await Notification.push(
     evaluator._id,
     'info',
     `New evaluation assignment: ${submission.title}`,
-    `/evaluator/score/${submission._id}`,
+    `/evaluator/score/${submission._id}`
   )
+
+  // 🔗 Optional: trigger automation (future use)
+  if (process.env.N8N_ASSIGNMENT_WEBHOOK) {
+    fetch(process.env.N8N_ASSIGNMENT_WEBHOOK, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        submissionId: submission._id,
+        evaluatorId: evaluator._id
+      }),
+    }).catch(() => {})
+  }
 
   return Submission.findById(submission._id)
     .populate('submitterId', 'name email')
     .populate('assignedEvaluatorId', 'name email expertise')
     .lean()
 }
- 
+
+// ================================
+// 📌 MARK SUBMISSION AS SCORED
+// ================================
+export async function markAsScored(submissionId, finalScore) {
+  const sub = await Submission.findById(submissionId)
+
+  if (!sub) {
+    throw Object.assign(new Error('Submission not found'), { status: 404 })
+  }
+
+  sub.finalScore = finalScore
+  sub.status = 'completed'
+  sub.scoredAt = new Date()
+
+  await sub.save()
+
+  // 🔗 Trigger n8n (results email)
+  if (process.env.N8N_SCORING_WEBHOOK) {
+    fetch(process.env.N8N_SCORING_WEBHOOK, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        submissionId: sub._id
+      }),
+    }).catch(err => {
+      console.error('n8n scoring webhook failed:', err.message)
+    })
+  }
+
+  return sub
+}

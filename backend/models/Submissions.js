@@ -20,6 +20,7 @@ const submissionSchema = new mongoose.Schema({
   files:       [{ name: String, url: String, size: Number }],
   status:      { type: String, enum: STATUSES, default: 'submitted' },
   ai:          { type: aiDoc, default: {} },
+  aiStatus:    { type: String, enum: ['pending', 'completed', 'failed'], default: 'pending' },
   finalScore:  Number,
   flagged:     { type: Boolean, default: false },
 }, { timestamps: true })

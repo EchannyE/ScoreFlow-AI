@@ -5,9 +5,8 @@ import { callClaude } from './claude.service.js'
 // 📌 AI ENRICHMENT PIPELINE
 // ================================
 export async function triggerAIEnrichment(submissionId) {
-  // Mark as processing
   await Submission.findByIdAndUpdate(submissionId, {
-    aiStatus: 'processing'
+    aiStatus: 'processing',
   })
 
   const sub = await Submission.findById(submissionId).lean()
@@ -15,9 +14,6 @@ export async function triggerAIEnrichment(submissionId) {
 
   const description = sub.fields?.description ?? sub.title
 
-  // =========================
-  // 🧠 PROMPTS
-  // =========================
   const summaryPrompt = `
 Summarise this project submission in 2–3 sentences.
 Focus on what it does, the problem it solves, and its potential impact.
@@ -35,7 +31,7 @@ Return STRICT JSON ONLY:
 {
   "score": number,
   "category": "string",
-  "confidence": number (0-1)
+  "confidence": number
 }
 
 Title: ${sub.title}
@@ -48,9 +44,6 @@ Description: ${description}
       callClaude(scorePrompt, 150),
     ])
 
-    // =========================
-    // 🔐 SAFE JSON PARSING
-    // =========================
     let parsed = {}
 
     try {
@@ -60,21 +53,22 @@ Description: ${description}
       console.warn('AI JSON parse failed:', e.message)
     }
 
-    const suggestedScore = Number(parsed.score) || 70
-    const category       = parsed.category || sub.track
-    const confidence     = Number(parsed.confidence) || 0.6
+    const parsedScore = Number(parsed.score)
+    const parsedConfidence = Number(parsed.confidence)
 
-    // =========================
-    // 🎯 QUALITY LOGIC
-    // =========================
+    const suggestedScore = Number.isFinite(parsedScore) ? parsedScore : 70
+    const category =
+      typeof parsed.category === 'string' && parsed.category.trim()
+        ? parsed.category.trim()
+        : sub.track
+    const confidence = Number.isFinite(parsedConfidence) ? parsedConfidence : 0.6
+
     const qualityFlag = suggestedScore < 40
     const priority =
       suggestedScore > 80 ? 'high' :
-      suggestedScore > 50 ? 'medium' : 'low'
+      suggestedScore > 50 ? 'medium' :
+      'low'
 
-    // =========================
-    // 💾 UPDATE SUBMISSION
-    // =========================
     await Submission.findByIdAndUpdate(submissionId, {
       ai: {
         summary: summaryText.trim(),
@@ -85,14 +79,13 @@ Description: ${description}
         qualityFlag,
         processedAt: new Date(),
       },
-      aiStatus: 'completed'
+      aiStatus: 'completed',
     })
-
   } catch (err) {
     console.error('AI enrichment failed:', err.message)
 
     await Submission.findByIdAndUpdate(submissionId, {
-      aiStatus: 'failed'
+      aiStatus: 'failed',
     })
   }
 }

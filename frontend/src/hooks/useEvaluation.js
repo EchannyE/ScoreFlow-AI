@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { evaluationsAPI } from '../lib/api.jsx'
 
+const AUTO_REFRESH_MS = 15000
+
 export function useEvaluatorQueue() {
   const [queue, setQueue] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ background = false } = {}) => {
     try {
-      setLoading(true)
+      if (!background) setLoading(true)
       setError(null)
 
       const { data } = await evaluationsAPI.myQueue()
@@ -19,14 +21,33 @@ export function useEvaluatorQueue() {
         e.message ??
         'Failed to load evaluator queue'
       )
-      setQueue([])
+      if (!background) setQueue([])
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
     load()
+  }, [load])
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') {
+        void load({ background: true })
+      }
+    }
+
+    const intervalId = window.setInterval(refresh, AUTO_REFRESH_MS)
+
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
   }, [load])
 
   const submitScore = useCallback(async payload => {
@@ -61,7 +82,7 @@ export function useAssignedSubmission(submissionId) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ background = false } = {}) => {
     if (!submissionId) {
       setSubmission(null)
       setLoading(false)
@@ -69,7 +90,7 @@ export function useAssignedSubmission(submissionId) {
     }
 
     try {
-      setLoading(true)
+      if (!background) setLoading(true)
       setError(null)
 
       const { data } = await evaluationsAPI.getSubmission(submissionId)
@@ -80,15 +101,36 @@ export function useAssignedSubmission(submissionId) {
         e.message ??
         'Failed to load submission'
       )
-      setSubmission(null)
+      if (!background) setSubmission(null)
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }, [submissionId])
 
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    if (!submissionId) return undefined
+
+    const refresh = () => {
+      if (document.visibilityState === 'visible') {
+        void load({ background: true })
+      }
+    }
+
+    const intervalId = window.setInterval(refresh, AUTO_REFRESH_MS)
+
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [load, submissionId])
 
   return {
     submission,

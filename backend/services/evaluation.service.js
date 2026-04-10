@@ -2,6 +2,7 @@ import Evaluation from '../models/Evaluation.js'
 import Submission from '../models/Submissions.js'
 import Notification from '../models/Notification.js'
 import { markAsScored } from './submission.service.js'
+import { submissionScoredEmail } from './email.service.js'
 
 // ================================
 // 📌 GET EVALUATION QUEUE
@@ -77,12 +78,14 @@ export async function getById(id) {
 // ================================
 export async function create(data, evaluatorId) {
   const submission = await Submission.findById(data.submissionId)
+    .populate('submitterId', 'name email')
+    .populate('assignedEvaluatorId', 'name email expertise')
 
   if (!submission) {
     throw Object.assign(new Error('Submission not found'), { status: 404 })
   }
 
-  if (String(submission.assignedEvaluatorId) !== String(evaluatorId)) {
+  if (String(submission.assignedEvaluatorId?._id || submission.assignedEvaluatorId) !== String(evaluatorId)) {
     throw Object.assign(
       new Error('This submission is not assigned to you'),
       { status: 403 }
@@ -117,13 +120,34 @@ export async function create(data, evaluatorId) {
   })
 
   if (evaluation.status === 'submitted') {
-    await markAsScored(data.submissionId, evaluation.weightedScore)
+    const scoredSubmission = await markAsScored(
+      data.submissionId,
+      evaluation.weightedScore
+    )
 
     await Notification.push(
       evaluatorId,
       'success',
       `Evaluation submitted — score: ${evaluation.weightedScore}`
     )
+
+    if (submission.submitterId?.email) {
+      submissionScoredEmail({
+        name: submission.submitterId.name,
+        email: submission.submitterId.email,
+        title: submission.title,
+        score: evaluation.weightedScore,
+        track: submission.track,
+        topScore: evaluation.weightedScore >= 85,
+      }).catch(err => {
+        console.error('submission scored email failed:', err.message)
+      })
+    }
+
+    return Evaluation.findById(evaluation._id)
+      .populate('evaluatorId', 'name email')
+      .populate('submissionId', 'title track status finalScore')
+      .lean()
   }
 
   return Evaluation.findById(evaluation._id)
@@ -163,13 +187,33 @@ export async function update(id, data, evaluatorId) {
   await evaluation.save()
 
   if (evaluation.status === 'submitted') {
-    await markAsScored(evaluation.submissionId, evaluation.weightedScore)
+    const submission = await Submission.findById(evaluation.submissionId)
+      .populate('submitterId', 'name email')
+      .populate('assignedEvaluatorId', 'name email expertise')
+
+    const scoredSubmission = await markAsScored(
+      evaluation.submissionId,
+      evaluation.weightedScore
+    )
 
     await Notification.push(
       evaluatorId,
       'success',
       `Evaluation submitted — score: ${evaluation.weightedScore}`
     )
+
+    if (submission?.submitterId?.email) {
+      submissionScoredEmail({
+        name: submission.submitterId.name,
+        email: submission.submitterId.email,
+        title: submission.title,
+        score: evaluation.weightedScore,
+        track: submission.track,
+        topScore: evaluation.weightedScore >= 85,
+      }).catch(err => {
+        console.error('submission scored email failed:', err.message)
+      })
+    }
   }
 
   return Evaluation.findById(evaluation._id)

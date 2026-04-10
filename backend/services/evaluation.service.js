@@ -51,10 +51,26 @@ export async function getAssignedSubmission(submissionId, evaluatorId) {
 // ================================
 export const list = (filters = {}) =>
   Evaluation.find(filters)
-    .populate('evaluatorId', 'name')
-    .populate('submissionId', 'title track status')
+    .populate('evaluatorId', 'name email')
+    .populate('submissionId', 'title track status finalScore')
     .sort({ createdAt: -1 })
     .lean()
+
+// ================================
+// 📌 GET SINGLE EVALUATION
+// ================================
+export async function getById(id) {
+  const evaluation = await Evaluation.findById(id)
+    .populate('evaluatorId', 'name email')
+    .populate('submissionId', 'title track status finalScore')
+    .lean()
+
+  if (!evaluation) {
+    throw Object.assign(new Error('Evaluation not found'), { status: 404 })
+  }
+
+  return evaluation
+}
 
 // ================================
 // 📌 CREATE EVALUATION
@@ -100,13 +116,64 @@ export async function create(data, evaluatorId) {
     status: data.status || 'submitted',
   })
 
-  await markAsScored(data.submissionId, evaluation.weightedScore)
+  if (evaluation.status === 'submitted') {
+    await markAsScored(data.submissionId, evaluation.weightedScore)
 
-  await Notification.push(
-    evaluatorId,
-    'success',
-    `Evaluation submitted — score: ${evaluation.weightedScore}`
-  )
+    await Notification.push(
+      evaluatorId,
+      'success',
+      `Evaluation submitted — score: ${evaluation.weightedScore}`
+    )
+  }
 
-  return evaluation
+  return Evaluation.findById(evaluation._id)
+    .populate('evaluatorId', 'name email')
+    .populate('submissionId', 'title track status finalScore')
+    .lean()
+}
+
+// ================================
+// 📌 UPDATE EVALUATION
+// ================================
+export async function update(id, data, evaluatorId) {
+  const evaluation = await Evaluation.findById(id)
+
+  if (!evaluation) {
+    throw Object.assign(new Error('Evaluation not found'), { status: 404 })
+  }
+
+  if (String(evaluation.evaluatorId) !== String(evaluatorId)) {
+    throw Object.assign(
+      new Error('You are not allowed to update this evaluation'),
+      { status: 403 }
+    )
+  }
+
+  if (evaluation.status === 'submitted') {
+    throw Object.assign(
+      new Error('Submitted evaluations cannot be edited'),
+      { status: 400 }
+    )
+  }
+
+  if (data.scores) evaluation.scores = data.scores
+  if (data.note !== undefined) evaluation.note = data.note
+  if (data.status) evaluation.status = data.status
+
+  await evaluation.save()
+
+  if (evaluation.status === 'submitted') {
+    await markAsScored(evaluation.submissionId, evaluation.weightedScore)
+
+    await Notification.push(
+      evaluatorId,
+      'success',
+      `Evaluation submitted — score: ${evaluation.weightedScore}`
+    )
+  }
+
+  return Evaluation.findById(evaluation._id)
+    .populate('evaluatorId', 'name email')
+    .populate('submissionId', 'title track status finalScore')
+    .lean()
 }

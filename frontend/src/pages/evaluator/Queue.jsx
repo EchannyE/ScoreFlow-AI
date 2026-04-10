@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useEvaluatorQueue } from '../../hooks/useEvaluation.js'
 import Card from '../../components/ui/Card.jsx'
@@ -28,15 +28,11 @@ function AccessIndicator({ submission }) {
 export default function EvaluatorQueue() {
   const location = useLocation()
   const { queue, loading, error } = useEvaluatorQueue()
-  const [recentlyScored, setRecentlyScored] = useState(
-    location.state?.recentlyScored ?? null
-  )
-
-  useEffect(() => {
-    if (location.state?.recentlyScored) {
-      setRecentlyScored(location.state.recentlyScored)
-    }
-  }, [location.state])
+  const [dismissedSubmissionId, setDismissedSubmissionId] = useState('')
+  const recentlyScored =
+    location.state?.recentlyScored?.submissionId === dismissedSubmissionId
+      ? null
+      : location.state?.recentlyScored ?? null
 
   if (loading) {
     return (
@@ -72,7 +68,7 @@ export default function EvaluatorQueue() {
                 {recentlyScored.title}
               </div>
               <div className="text-sm text-text-3">
-                Final score {recentlyScored.weightedScore}
+                Final score: {recentlyScored.weightedScore}
                 {recentlyScored.aiScore != null && (
                   <>
                     {' '}• AI {recentlyScored.aiScore}{' '}
@@ -85,7 +81,9 @@ export default function EvaluatorQueue() {
 
             <Button
               variant="secondary"
-              onClick={() => setRecentlyScored(null)}
+              onClick={() =>
+                setDismissedSubmissionId(recentlyScored.submissionId)
+              }
               className="w-full lg:w-auto"
             >
               Dismiss

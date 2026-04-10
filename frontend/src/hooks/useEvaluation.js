@@ -112,7 +112,7 @@ export function useAssignedSubmission(submissionId) {
   }, [load])
 
   useEffect(() => {
-    if (!submissionId) return undefined
+    if (!submissionId) return
 
     const refresh = () => {
       if (document.visibilityState === 'visible') {

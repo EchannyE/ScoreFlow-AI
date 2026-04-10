@@ -36,7 +36,7 @@ export default function EvaluatorScore() {
   const { submissionId } = useParams()
   const navigate = useNavigate()
   const { submitScore } = useEvaluatorQueue()
-  const { submission, loading, error } = useAssignedSubmission(submissionId)
+  const { submission, loading, error, refetch } = useAssignedSubmission(submissionId)
 
   const [scores, setScores] = useState(DEFAULT_SCORES)
   const [note, setNote] = useState('')
@@ -77,6 +77,7 @@ export default function EvaluatorScore() {
         status: 'submitted',
       })
 
+      await refetch()
       setSubmittedEvaluation(evaluation)
     } finally {
       setSubmitting(false)
@@ -410,4 +411,5 @@ export default function EvaluatorScore() {
         </div>
       )}
     </div>
-  )}
+  )
+                          }

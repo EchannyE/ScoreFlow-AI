@@ -1,6 +1,9 @@
 import * as evaluationService from '../services/evaluation.service.js'
 import { ok, fail } from '../utils/aiResponse.js'
 
+// ================================
+// 📌 GET EVALUATOR QUEUE
+// ================================
 export const myQueue = async (req, res) => {
   try {
     ok(res, await evaluationService.getQueue(req.user._id))
@@ -9,6 +12,9 @@ export const myQueue = async (req, res) => {
   }
 }
 
+// ================================
+// 📌 GET ASSIGNED SUBMISSION
+// ================================
 export const getAssignedSubmission = async (req, res) => {
   try {
     ok(
@@ -23,9 +29,13 @@ export const getAssignedSubmission = async (req, res) => {
   }
 }
 
+// ================================
+// 📌 LIST EVALUATIONS (ADMIN)
+// ================================
 export const list = async (req, res) => {
   try {
     const filters = {}
+
     if (req.query.submissionId) filters.submissionId = req.query.submissionId
     if (req.query.evaluatorId) filters.evaluatorId = req.query.evaluatorId
 
@@ -35,6 +45,9 @@ export const list = async (req, res) => {
   }
 }
 
+// ================================
+// 📌 GET SINGLE EVALUATION
+// ================================
 export const get = async (req, res) => {
   try {
     ok(res, await evaluationService.getById(req.params.id))
@@ -43,6 +56,9 @@ export const get = async (req, res) => {
   }
 }
 
+// ================================
+// 📌 CREATE EVALUATION
+// ================================
 export const create = async (req, res) => {
   try {
     ok(res, await evaluationService.create(req.body, req.user._id), 201)
@@ -51,9 +67,19 @@ export const create = async (req, res) => {
   }
 }
 
+// ================================
+// 📌 UPDATE EVALUATION
+// ================================
 export const update = async (req, res) => {
   try {
-    ok(res, await evaluationService.update(req.params.id, req.body, req.user._id))
+    ok(
+      res,
+      await evaluationService.update(
+        req.params.id,
+        req.body,
+        req.user._id
+      )
+    )
   } catch (e) {
     fail(res, e)
   }

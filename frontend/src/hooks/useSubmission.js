@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { submissionsAPI } from '../lib/api.jsx'
 
+const AUTO_REFRESH_MS = 15000
+
 function normalizeSubmissionList(payload) {
   if (Array.isArray(payload)) return payload
   if (Array.isArray(payload?.submissions)) return payload.submissions
@@ -15,9 +17,9 @@ export function useSubmissions(params = {}) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ background = false } = {}) => {
     try {
-      setLoading(true)
+      if (!background) setLoading(true)
       setError(null)
 
       const response = await submissionsAPI.list(stableParams)
@@ -28,14 +30,33 @@ export function useSubmissions(params = {}) {
         e.message ??
         'Failed to load submissions'
       )
-      setSubmissions([])
+      if (!background) setSubmissions([])
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }, [stableParams])
 
   useEffect(() => {
     load()
+  }, [load])
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') {
+        void load({ background: true })
+      }
+    }
+
+    const intervalId = window.setInterval(refresh, AUTO_REFRESH_MS)
+
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
   }, [load])
 
   const createSubmission = useCallback(async data => {
@@ -112,9 +133,9 @@ export function useMySubmissions() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ background = false } = {}) => {
     try {
-      setLoading(true)
+      if (!background) setLoading(true)
       setError(null)
 
       const response = await submissionsAPI.mine()
@@ -125,14 +146,33 @@ export function useMySubmissions() {
         e.message ??
         'Failed to load your submissions'
       )
-      setSubmissions([])
+      if (!background) setSubmissions([])
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
     load()
+  }, [load])
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') {
+        void load({ background: true })
+      }
+    }
+
+    const intervalId = window.setInterval(refresh, AUTO_REFRESH_MS)
+
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
   }, [load])
 
   return {

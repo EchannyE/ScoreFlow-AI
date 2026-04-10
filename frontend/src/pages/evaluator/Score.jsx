@@ -41,7 +41,6 @@ export default function EvaluatorScore() {
   const [scores, setScores] = useState(DEFAULT_SCORES)
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [submittedEvaluation, setSubmittedEvaluation] = useState(null)
   const [submitError, setSubmitError] = useState('')
 
   const weightedScore = useMemo(
@@ -62,12 +61,6 @@ export default function EvaluatorScore() {
       ? submission.ai.suggestedScore
       : null
 
-  const finalWeightedScore =
-    submittedEvaluation?.weightedScore ?? weightedScore
-
-  const scoreDelta =
-    aiScore == null ? null : finalWeightedScore - aiScore
-
   const handleSubmit = async () => {
     if (!submission || submitting) return
 
@@ -83,10 +76,24 @@ export default function EvaluatorScore() {
         status: 'submitted',
       })
 
-      setSubmittedEvaluation(evaluation)
-
-      // refresh in background, but do not block modal rendering
       Promise.resolve(refetch?.()).catch(() => {})
+
+      const finalWeightedScore = evaluation?.weightedScore ?? weightedScore
+      const scoreDelta =
+        aiScore == null ? null : finalWeightedScore - aiScore
+
+      navigate('/evaluator', {
+        replace: true,
+        state: {
+          recentlyScored: {
+            submissionId,
+            title: submission.title,
+            weightedScore: finalWeightedScore,
+            aiScore,
+            scoreDelta,
+          },
+        },
+      })
     } catch (e) {
       setSubmitError(
         e?.response?.data?.message ||
@@ -258,175 +265,6 @@ export default function EvaluatorScore() {
           <AIScoreReveal aiScore={aiScore} />
         </div>
       </div>
-
-      {submittedEvaluation && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-          <div className="w-full max-w-4xl rounded-[28px] border border-white/10 bg-bg-1/95 shadow-2xl overflow-hidden">
-            <div className="flex items-start justify-between gap-4 border-b border-white/5 px-6 py-5 md:px-8">
-              <div>
-                <div className="text-[10px] text-green font-bold uppercase tracking-[0.2em] mb-2">
-                  Evaluation Submitted
-                </div>
-                <h3 className="font-display text-2xl font-bold tracking-tight text-white">
-                  Score Comparison Review
-                </h3>
-                <p className="mt-2 text-sm text-text-3 max-w-2xl">
-                  Your evaluation is now locked in. Review how your final weighted
-                  score compares with the AI suggestion before returning to the queue.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => navigate('/evaluator')}
-                className="rounded-full border border-white/10 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-text-3 hover:text-white hover:border-white/20 transition-colors"
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="grid gap-6 px-6 py-6 md:grid-cols-[1.1fr_0.9fr] md:px-8 md:py-8">
-              <div className="space-y-4">
-                <div className="rounded-[22px] border border-white/5 bg-bg-2/60 p-5">
-                  <div className="mb-4 flex items-center justify-between">
-                    <div>
-                      <div className="text-[10px] text-text-3 font-bold uppercase tracking-[0.18em] mb-1">
-                        Submission
-                      </div>
-                      <div className="text-lg font-bold text-white">
-                        {submission.title}
-                      </div>
-                    </div>
-                    <Badge type={submission.track ? 'info' : 'submitted'}>
-                      {submission.track}
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-3">
-                    {RUBRIC.map(rubricItem => (
-                      <div
-                        key={rubricItem.id}
-                        className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3"
-                      >
-                        <div>
-                          <div className="text-[11px] font-bold text-text-1">
-                            {rubricItem.label}
-                          </div>
-                          <div className="text-[9px] uppercase tracking-widest text-text-3">
-                            Weight {rubricItem.weight}%
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-mono font-bold text-white">
-                            {submittedEvaluation.scores?.[rubricItem.id] ??
-                              scores[rubricItem.id] ??
-                              0}
-                          </div>
-                          <div className="text-[9px] uppercase tracking-widest text-text-3">
-                            /100
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {note && (
-                    <div className="mt-4 rounded-xl border border-white/5 bg-black/10 px-4 py-3">
-                      <div className="text-[10px] text-text-3 font-bold uppercase tracking-widest mb-2">
-                        Your note
-                      </div>
-                      <p className="text-sm leading-relaxed text-text-2">{note}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="rounded-[22px] border border-white/5 bg-gradient-to-b from-white/[0.03] to-transparent p-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="rounded-[18px] border border-green/15 bg-green/5 p-4 text-center">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-green mb-3">
-                        Evaluator Score
-                      </div>
-                      <div className="mx-auto mb-3 flex w-fit items-center justify-center rounded-full border border-green/15 bg-bg-2/80 p-3">
-                        <div className="text-4xl font-display font-black text-white">
-                          {finalWeightedScore}
-                        </div>
-                      </div>
-                      <div className="text-[11px] text-text-3">
-                        Weighted final after rubric scoring
-                      </div>
-                    </div>
-
-                    <div className="rounded-[18px] border border-purple/15 bg-purple/5 p-4 text-center">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-purple mb-3">
-                        AI Suggestion
-                      </div>
-                      <div className="mx-auto mb-3 flex w-fit items-center justify-center rounded-full border border-purple/15 bg-bg-2/80 p-3">
-                        <div className="text-4xl font-display font-black text-white">
-                          {aiScore ?? '—'}
-                        </div>
-                      </div>
-                      <div className="text-[11px] text-text-3">
-                        Pre-score benchmark estimate
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 rounded-[18px] border border-white/5 bg-bg-2/50 px-5 py-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="text-[10px] text-text-3 font-bold uppercase tracking-[0.18em] mb-1">
-                          Delta
-                        </div>
-                        <div className="text-sm text-text-2">
-                          Difference between your score and the AI recommendation
-                        </div>
-                      </div>
-                      <div
-                        className={`text-2xl font-display font-black ${
-                          scoreDelta == null
-                            ? 'text-text-3'
-                            : scoreDelta >= 0
-                              ? 'text-green'
-                              : 'text-red'
-                        }`}
-                      >
-                        {scoreDelta == null
-                          ? '—'
-                          : `${scoreDelta > 0 ? '+' : ''}${scoreDelta}`}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-[22px] border border-white/5 bg-bg-2/40 p-5">
-                  <div className="text-[10px] text-text-3 font-bold uppercase tracking-[0.18em] mb-3">
-                    Next Step
-                  </div>
-                  <p className="text-sm leading-relaxed text-text-2 mb-5">
-                    This evaluation has been submitted successfully. You can return
-                    to your queue for the next assignment or stay here briefly to
-                    review the outcome.
-                  </p>
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <Button className="flex-1" onClick={() => navigate('/evaluator')}>
-                      Return To Queue
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      className="flex-1"
-                      onClick={() => setSubmittedEvaluation(null)}
-                    >
-                      Stay On This Page
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
+import React, { useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { useEvaluatorQueue } from '../../hooks/useEvaluation.js'
 import Card from '../../components/ui/Card.jsx'
 import Badge from '../../components/ui/Badge.jsx'
@@ -26,7 +26,13 @@ function AccessIndicator({ submission }) {
 }
 
 export default function EvaluatorQueue() {
+  const location = useLocation()
   const { queue, loading, error } = useEvaluatorQueue()
+  const [dismissedSubmissionId, setDismissedSubmissionId] = useState('')
+  const recentlyScored =
+    location.state?.recentlyScored?.submissionId === dismissedSubmissionId
+      ? null
+      : location.state?.recentlyScored ?? null
 
   if (loading) {
     return (
@@ -51,6 +57,41 @@ export default function EvaluatorQueue() {
 
   return (
     <div className="fade-up space-y-8">
+      {recentlyScored && (
+        <Card className="border border-green/20 bg-green/5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="text-[10px] text-green font-bold uppercase tracking-[0.2em] mb-2">
+                Evaluation submitted
+              </div>
+              <div className="text-lg font-bold text-white mb-1">
+                {recentlyScored.title}
+              </div>
+              <div className="text-sm text-text-3">
+                Final score: {recentlyScored.weightedScore}
+                {recentlyScored.aiScore != null && (
+                  <>
+                    {' '}• AI {recentlyScored.aiScore}{' '}
+                    ({recentlyScored.scoreDelta > 0 ? '+' : ''}
+                    {recentlyScored.scoreDelta})
+                  </>
+                )}
+              </div>
+            </div>
+
+            <Button
+              variant="secondary"
+              onClick={() =>
+                setDismissedSubmissionId(recentlyScored.submissionId)
+              }
+              className="w-full lg:w-auto"
+            >
+              Dismiss
+            </Button>
+          </div>
+        </Card>
+      )}
+
       <div className="flex justify-between items-end border-b border-white/5 pb-8">
         <div>
           <div className="flex items-center gap-2 mb-2">

@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { submissionsAPI } from '../lib/api.jsx'
 
+function normalizeSubmissionList(payload) {
+  if (Array.isArray(payload)) return payload
+  if (Array.isArray(payload?.submissions)) return payload.submissions
+  return []
+}
+
 export function useSubmissions(params = {}) {
   const paramsKey = JSON.stringify(params)
   const stableParams = useMemo(() => JSON.parse(paramsKey), [paramsKey])
@@ -9,21 +15,20 @@ export function useSubmissions(params = {}) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const normalizeListResponse = payload => {
-    if (Array.isArray(payload)) return payload
-    if (Array.isArray(payload?.submissions)) return payload.submissions
-    return []
-  }
-
   const load = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
 
       const response = await submissionsAPI.list(stableParams)
-      setSubmissions(normalizeListResponse(response.data))
+      setSubmissions(normalizeSubmissionList(response.data))
     } catch (e) {
-      setError(e.response?.data?.message ?? e.message ?? 'Failed to load submissions')
+      setError(
+        e.response?.data?.message ??
+        e.message ??
+        'Failed to load submissions'
+      )
+      setSubmissions([])
     } finally {
       setLoading(false)
     }
@@ -33,7 +38,7 @@ export function useSubmissions(params = {}) {
     load()
   }, [load])
 
-  const createSubmission = async data => {
+  const createSubmission = useCallback(async data => {
     try {
       const response = await submissionsAPI.create(data)
       const created = response.data
@@ -41,11 +46,15 @@ export function useSubmissions(params = {}) {
       setSubmissions(prev => [created, ...prev])
       return created
     } catch (e) {
-      throw new Error(e.response?.data?.message ?? e.message ?? 'Failed to create submission')
+      throw new Error(
+        e.response?.data?.message ??
+        e.message ??
+        'Failed to create submission'
+      )
     }
-  }
+  }, [])
 
-  const assignSubmission = async (submissionId, evaluatorId) => {
+  const assignSubmission = useCallback(async (submissionId, evaluatorId) => {
     try {
       const response = await submissionsAPI.assign(submissionId, evaluatorId)
       const updated = response.data
@@ -58,11 +67,15 @@ export function useSubmissions(params = {}) {
 
       return updated
     } catch (e) {
-      throw new Error(e.response?.data?.message ?? e.message ?? 'Failed to assign submission')
+      throw new Error(
+        e.response?.data?.message ??
+        e.message ??
+        'Failed to assign submission'
+      )
     }
-  }
+  }, [])
 
-  const updateSubmission = async (submissionId, data) => {
+  const updateSubmission = useCallback(async (submissionId, data) => {
     try {
       const response = await submissionsAPI.update(submissionId, data)
       const updated = response.data
@@ -75,9 +88,13 @@ export function useSubmissions(params = {}) {
 
       return updated
     } catch (e) {
-      throw new Error(e.response?.data?.message ?? e.message ?? 'Failed to update submission')
+      throw new Error(
+        e.response?.data?.message ??
+        e.message ??
+        'Failed to update submission'
+      )
     }
-  }
+  }, [])
 
   return {
     submissions,
@@ -95,21 +112,20 @@ export function useMySubmissions() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const normalizeMineResponse = payload => {
-    if (Array.isArray(payload)) return payload
-    if (Array.isArray(payload?.submissions)) return payload.submissions
-    return []
-  }
-
   const load = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
 
       const response = await submissionsAPI.mine()
-      setSubmissions(normalizeMineResponse(response.data))
+      setSubmissions(normalizeSubmissionList(response.data))
     } catch (e) {
-      setError(e.response?.data?.message ?? e.message ?? 'Failed to load your submissions')
+      setError(
+        e.response?.data?.message ??
+        e.message ??
+        'Failed to load your submissions'
+      )
+      setSubmissions([])
     } finally {
       setLoading(false)
     }
@@ -125,4 +141,4 @@ export function useMySubmissions() {
     error,
     refetch: load,
   }
-  }
+}

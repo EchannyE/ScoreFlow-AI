@@ -1,8 +1,8 @@
-
 import Submission from '../models/Submissions.js'
 import User from '../models/User.js'
 import Notification from '../models/Notification.js'
 import { triggerAIEnrichment } from './enrichment.service.js'
+import { submissionCreatedEmail } from './email.service.js'
 
 // ================================
 // 📌 GET ALL SUBMISSIONS
@@ -48,28 +48,67 @@ export async function create(data, userId) {
     status: 'submitted',
   })
 
+  const created = await Submission.findById(sub._id)
+    .populate('submitterId', 'name email')
+    .populate('assignedEvaluatorId', 'name email expertise')
+    .lean()
+
+  // =========================
+  // 🧠 Async AI enrichment
+  // =========================
   setImmediate(() => {
     triggerAIEnrichment(sub._id).catch(e => {
       console.error('AI enrichment error:', e.message)
     })
   })
 
+  // =========================
+  // 📧 Submission confirmation email
+  // =========================
+  if (created?.submitterId?.email) {
+    submissionCreatedEmail({
+      name: created.submitterId.name,
+      email: created.submitterId.email,
+      title: created.title,
+      track: created.track,
+    }).catch(err => {
+      console.error('submission confirmation email failed:', err.message)
+    })
+  }
+
+  // =========================
+  // 🔗 Trigger n8n submission automation
+  // Submission Created
+  // → Email already handled here
+  // → Slack (if high priority)
+  // → WhatsApp (if critical)
+  // =========================
   if (process.env.N8N_SUBMISSION_WEBHOOK) {
     fetch(process.env.N8N_SUBMISSION_WEBHOOK, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        submissionId: sub._id,
+        event: 'submission.created',
+        submissionId: created._id,
+        title: created.title,
+        track: created.track,
+        status: created.status,
+        submitterId: created.submitterId?._id,
+        submitterName: created.submitterId?.name,
+        submitterEmail: created.submitterId?.email,
+        hasProjectUrl: Boolean(created.fields?.projectUrl),
+        hasGithubUrl: Boolean(created.fields?.githubUrl),
+        hasDemoUrl: Boolean(created.fields?.demoUrl),
+        hasFileUrl: Boolean(created.fields?.fileUrl),
+        fileCount: created.files?.length ?? 0,
+        createdAt: created.createdAt,
       }),
     }).catch(err => {
       console.error('n8n submission webhook failed:', err.message)
     })
   }
 
-  return Submission.findById(sub._id)
-    .populate('submitterId', 'name email')
-    .populate('assignedEvaluatorId', 'name email expertise')
-    .lean()
+  return created
 }
 
 // ================================
@@ -130,8 +169,11 @@ export async function assignEvaluator(id, evaluatorId) {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        event: 'submission.assigned',
         submissionId: submission._id,
         evaluatorId: evaluator._id,
+        evaluatorName: evaluator.name,
+        evaluatorEmail: evaluator.email,
       }),
     }).catch(err => {
       console.error('n8n assignment webhook failed:', err.message)
@@ -149,6 +191,8 @@ export async function assignEvaluator(id, evaluatorId) {
 // ================================
 export async function markAsScored(submissionId, finalScore) {
   const sub = await Submission.findById(submissionId)
+    .populate('submitterId', 'name email')
+    .populate('assignedEvaluatorId', 'name email expertise')
 
   if (!sub) {
     throw Object.assign(new Error('Submission not found'), { status: 404 })
@@ -160,17 +204,35 @@ export async function markAsScored(submissionId, finalScore) {
 
   await sub.save()
 
+  // =========================
+  // 🔗 Trigger n8n score-release automation
+  // Submission Scored
+  // → Email handled in evaluation.service.js
+  // → Slack (if top score)
+  // =========================
   if (process.env.N8N_SCORE_RELEASE_WEBHOOK) {
     fetch(process.env.N8N_SCORE_RELEASE_WEBHOOK, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        event: 'submission.scored',
         submissionId: sub._id,
+        title: sub.title,
+        track: sub.track,
+        finalScore: sub.finalScore,
+        topScore: sub.finalScore >= 85,
+        submitterId: sub.submitterId?._id,
+        submitterName: sub.submitterId?.name,
+        submitterEmail: sub.submitterId?.email,
+        evaluatorId: sub.assignedEvaluatorId?._id,
+        evaluatorName: sub.assignedEvaluatorId?.name,
+        evaluatorEmail: sub.assignedEvaluatorId?.email,
+        scoredAt: sub.scoredAt,
       }),
     }).catch(err => {
       console.error('n8n score release webhook failed:', err.message)
     })
   }
 
-  return sub
+  return sub.toObject()
 }

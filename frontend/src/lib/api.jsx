@@ -13,23 +13,37 @@ const unwrapResponse = response => ({
 const get = (url, config) => api.get(url, config).then(unwrapResponse)
 const post = (url, data, config) => api.post(url, data, config).then(unwrapResponse)
 const patch = (url, data, config) => api.patch(url, data, config).then(unwrapResponse)
+const put = (url, data, config) => api.put(url, data, config).then(unwrapResponse)
+const del = (url, config) => api.delete(url, config).then(unwrapResponse)
 
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('sf_token')
+
   if (token) {
     config.headers = config.headers || {}
     config.headers.Authorization = `Bearer ${token}`
   }
+
   return config
 })
 
 api.interceptors.response.use(
   res => res,
   err => {
-    if (err.response?.status === 401) {
+    const status = err.response?.status
+    const requestUrl = err.config?.url || ''
+    const isAuthRoute =
+      requestUrl.includes('/api/auth/login') ||
+      requestUrl.includes('/api/auth/register')
+
+    if (status === 401 && !isAuthRoute) {
       localStorage.removeItem('sf_token')
-      window.location.href = '/login'
+
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
+
     return Promise.reject(err)
   }
 )
@@ -79,4 +93,5 @@ export const usersAPI = {
   get: id => get(`/api/users/${id}`),
 }
 
+export { api, get, post, patch, put, del }
 export default api

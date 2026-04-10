@@ -410,5 +410,4 @@ export default function EvaluatorScore() {
         </div>
       )}
     </div>
-  )
-                      }
+  )}

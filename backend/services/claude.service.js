@@ -16,12 +16,16 @@ export async function callClaude(prompt, maxTokens = 400, options = {}) {
     timeoutMs = 15000,
   } = options
 
+  const model = process.env.ANTHROPIC_MODEL ?? 'claude-3-5-sonnet-latest'
+
   let attempt = 0
 
   while (attempt <= retries) {
+    let timeout
+
     try {
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), timeoutMs)
+      timeout = setTimeout(() => controller.abort(), timeoutMs)
 
       const response = await fetch(CLAUDE_API_URL, {
         method: 'POST',
@@ -32,7 +36,7 @@ export async function callClaude(prompt, maxTokens = 400, options = {}) {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: process.env.ANTHROPIC_MODEL ?? 'claude-3-5-sonnet-latest',
+          model,
           max_tokens: maxTokens,
           temperature,
           messages: [
@@ -46,15 +50,13 @@ export async function callClaude(prompt, maxTokens = 400, options = {}) {
 
       clearTimeout(timeout)
 
-      // =========================
-      // ❌ Handle API errors
-      // =========================
       if (!response.ok) {
         const errorText = await response.text()
 
-        // Retry on rate limit / server errors
-        if (response.status >= 500 || response.status === 429) {
-          throw new Error(`Retryable error: ${response.status}`)
+        if (response.status === 429 || response.status >= 500) {
+          const retryableError = new Error(`Retryable error: ${response.status} ${errorText}`)
+          retryableError.retryable = true
+          throw retryableError
         }
 
         throw new Error(`Claude request failed: ${response.status} ${errorText}`)
@@ -62,9 +64,6 @@ export async function callClaude(prompt, maxTokens = 400, options = {}) {
 
       const data = await response.json()
 
-      // =========================
-      // 🧠 Extract text safely
-      // =========================
       const text = data.content
         ?.filter(part => part.type === 'text')
         .map(part => part.text)
@@ -76,26 +75,21 @@ export async function callClaude(prompt, maxTokens = 400, options = {}) {
       }
 
       return text
-
     } catch (err) {
+      clearTimeout(timeout)
       attempt++
 
-      // =========================
-      // ❌ Abort / Timeout
-      // =========================
-      if (err.name === 'AbortError') {
-        console.warn(`Claude timeout (attempt ${attempt})`)
-      }
-
-      // =========================
-      // 🔁 Retry logic
-      // =========================
       if (attempt > retries) {
         throw new Error(`Claude failed after ${retries + 1} attempts: ${err.message}`)
       }
 
-      // exponential backoff
-      await new Promise(res => setTimeout(res, 500 * attempt))
+      if (err.name === 'AbortError') {
+        console.warn(`Claude timeout (attempt ${attempt}/${retries + 1})`)
+      } else {
+        console.warn(`Claude request failed (attempt ${attempt}/${retries + 1}): ${err.message}`)
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 500 * attempt))
     }
   }
-}
+    }

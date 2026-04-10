@@ -35,9 +35,25 @@ export const list = async (req, res) => {
   }
 }
 
+export const get = async (req, res) => {
+  try {
+    ok(res, await evaluationService.getById(req.params.id))
+  } catch (e) {
+    fail(res, e)
+  }
+}
+
 export const create = async (req, res) => {
   try {
     ok(res, await evaluationService.create(req.body, req.user._id), 201)
+  } catch (e) {
+    fail(res, e)
+  }
+}
+
+export const update = async (req, res) => {
+  try {
+    ok(res, await evaluationService.update(req.params.id, req.body, req.user._id))
   } catch (e) {
     fail(res, e)
   }

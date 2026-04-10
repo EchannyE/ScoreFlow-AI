@@ -14,7 +14,11 @@ export function useEvaluatorQueue() {
       const { data } = await evaluationsAPI.myQueue()
       setQueue(Array.isArray(data) ? data : [])
     } catch (e) {
-      setError(e.response?.data?.message ?? e.message ?? 'Failed to load evaluator queue')
+      setError(
+        e.response?.data?.message ??
+        e.message ??
+        'Failed to load evaluator queue'
+      )
       setQueue([])
     } finally {
       setLoading(false)
@@ -25,15 +29,23 @@ export function useEvaluatorQueue() {
     load()
   }, [load])
 
-  const submitScore = async data => {
+  const submitScore = useCallback(async payload => {
     try {
-      const { data: evaluation } = await evaluationsAPI.create(data)
-      setQueue(prev => prev.filter(s => s._id !== data.submissionId))
+      const { data: evaluation } = await evaluationsAPI.create(payload)
+
+      setQueue(prev =>
+        prev.filter(submission => submission._id !== payload.submissionId)
+      )
+
       return evaluation
     } catch (e) {
-      throw new Error(e.response?.data?.message ?? e.message ?? 'Failed to submit evaluation')
+      throw new Error(
+        e.response?.data?.message ??
+        e.message ??
+        'Failed to submit evaluation'
+      )
     }
-  }
+  }, [])
 
   return {
     queue,
@@ -63,7 +75,11 @@ export function useAssignedSubmission(submissionId) {
       const { data } = await evaluationsAPI.getSubmission(submissionId)
       setSubmission(data)
     } catch (e) {
-      setError(e.response?.data?.message ?? e.message ?? 'Failed to load submission')
+      setError(
+        e.response?.data?.message ??
+        e.message ??
+        'Failed to load submission'
+      )
       setSubmission(null)
     } finally {
       setLoading(false)

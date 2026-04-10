@@ -1,7 +1,7 @@
-import axios from 'axios'
+  import axios from 'axios'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
   timeout: 10000,
 })
 
@@ -17,6 +17,7 @@ const patch = (url, data, config) => api.patch(url, data, config).then(unwrapRes
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('sf_token')
   if (token) {
+    config.headers = config.headers || {}
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
@@ -60,9 +61,11 @@ export const submissionsAPI = {
 export const evaluationsAPI = {
   myQueue: () => get('/api/evaluations/my-queue'),
   list: params => get('/api/evaluations', { params }),
+  get: id => get(`/api/evaluations/${id}`),
   getSubmission: submissionId =>
     get(`/api/evaluations/submission/${submissionId}`),
   create: data => post('/api/evaluations', data),
+  update: (id, data) => patch(`/api/evaluations/${id}`, data),
 }
 
 export const notificationsAPI = {

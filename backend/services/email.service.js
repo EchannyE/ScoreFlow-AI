@@ -1,4 +1,3 @@
-
 import nodemailer from 'nodemailer'
 
 const SMTP_PORT = Number(process.env.SMTP_PORT) || 587
@@ -26,11 +25,19 @@ function stripHtml(html = '') {
   return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
+function assertRecipient(to) {
+  if (!to || typeof to !== 'string' || !to.trim()) {
+    throw new Error('Email recipient is required')
+  }
+}
+
 export async function send({ to, subject, html, text }) {
+  assertRecipient(to)
+
   try {
     const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM || 'ScoreFlow AI <noreply@scoreflow.ai>',
-      to,
+      to: to.trim(),
       subject,
       html,
       text: text || stripHtml(html),
@@ -91,10 +98,13 @@ export async function submissionScoredEmail({
   title,
   score,
   track,
+  topScore = false,
 }) {
   return send({
     to: email,
-    subject: `Results Ready — ${title}`,
+    subject: topScore
+      ? `Top Score Achieved — ${title}`
+      : `Results Ready — ${title}`,
     html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
         <p>Hi ${name || 'there'},</p>
@@ -106,7 +116,11 @@ export async function submissionScoredEmail({
           <strong>Final Score:</strong> ${score} / 100
         </p>
 
-        <p>Thank you for participating in the evaluation process.</p>
+        ${
+          topScore
+            ? `<p><strong>Congratulations:</strong> your submission is among the top-scoring entries.</p>`
+            : `<p>Thank you for participating in the evaluation process.</p>`
+        }
 
         <p>— ScoreFlow AI</p>
       </div>
@@ -121,12 +135,15 @@ export async function evaluatorReminderEmail({
   name,
   email,
   pendingCount,
+  overload = false,
 }) {
   const queueUrl = `${process.env.CLIENT_URL || ''}/evaluator`
 
   return send({
     to: email,
-    subject: `${pendingCount} entr${pendingCount === 1 ? 'y is' : 'ies are'} awaiting your review`,
+    subject: overload
+      ? `Urgent Reminder — ${pendingCount} entries awaiting your review`
+      : `${pendingCount} entr${pendingCount === 1 ? 'y is' : 'ies are'} awaiting your review`,
     html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
         <p>Hi ${name || 'Evaluator'},</p>
@@ -135,7 +152,11 @@ export async function evaluatorReminderEmail({
           pendingCount === 1 ? 'entry' : 'entries'
         } awaiting review.</p>
 
-        <p>Please return to your evaluation queue to complete scoring.</p>
+        ${
+          overload
+            ? `<p><strong>Priority notice:</strong> your evaluation queue is above the normal threshold and needs attention.</p>`
+            : `<p>Please return to your evaluation queue to complete scoring.</p>`
+        }
 
         <p>
           <a href="${queueUrl}" style="color: #0ea5e9; text-decoration: none;">
@@ -171,4 +192,4 @@ export async function systemErrorEmail({
       </div>
     `,
   })
-}
+    }

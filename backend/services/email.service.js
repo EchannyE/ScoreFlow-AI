@@ -1,133 +1,174 @@
-import Submission from '../models/Submissions.js'
-import { callClaude } from './claude.service.js'
 
-// ================================
-// 📌 AI ENRICHMENT PIPELINE (v2)
-// ================================
-export async function triggerAIEnrichment(submissionId) {
+import nodemailer from 'nodemailer'
+
+const SMTP_PORT = Number(process.env.SMTP_PORT) || 587
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: SMTP_PORT,
+  secure: SMTP_PORT === 465,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+})
+
+export async function verifyMailer() {
   try {
-    // =========================
-    // 🔒 Prevent duplicate processing
-    // =========================
-    const existing = await Submission.findById(submissionId).lean()
-    if (!existing) return
-
-    if (existing.aiStatus === 'processing' || existing.aiStatus === 'completed') {
-      return // already handled
-    }
-
-    // Mark as processing
-    await Submission.findByIdAndUpdate(submissionId, {
-      aiStatus: 'processing'
-    })
-
-    const description = existing.fields?.description ?? existing.title
-
-    // =========================
-    // 🧠 PROMPTS (tightened)
-    // =========================
-    const summaryPrompt = `
-Summarise this project in 2–3 concise sentences.
-Focus on functionality, problem solved, and impact.
-
-Title: ${existing.title}
-Track: ${existing.track}
-Description: ${description}
-`.trim()
-
-    const scorePrompt = `
-Evaluate this project.
-
-Scoring:
-- Innovation (25%)
-- Feasibility (30%)
-- Impact (25%)
-- Presentation (20%)
-
-Return STRICT JSON ONLY:
-{
-  "score": number (0-100),
-  "category": "string",
-  "confidence": number (0-1)
+    await transporter.verify()
+    console.log('✅ SMTP connection verified')
+  } catch (err) {
+    console.error('❌ SMTP connection failed:', err.message)
+  }
 }
 
-No explanations. No extra text.
+function stripHtml(html = '') {
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+}
 
-Title: ${existing.title}
-Description: ${description}
-`.trim()
-
-    // =========================
-    // ⚡ PARALLEL AI CALLS
-    // =========================
-    const [summaryText, scoreText] = await Promise.all([
-      callClaude(summaryPrompt),
-      callClaude(scorePrompt, 150),
-    ])
-
-    // =========================
-    // 🔐 ROBUST JSON PARSING
-    // =========================
-    let parsed = {}
-
-    try {
-      const jsonMatch = scoreText.match(/\{[\s\S]*?\}/) // non-greedy
-      parsed = JSON.parse(jsonMatch?.[0] || '{}')
-    } catch (e) {
-      console.warn('AI JSON parse failed:', e.message)
-    }
-
-    // =========================
-    // 🧮 SAFE VALUE NORMALIZATION
-    // =========================
-    let suggestedScore = Number(parsed.score)
-    if (isNaN(suggestedScore)) suggestedScore = 70
-    suggestedScore = Math.max(0, Math.min(100, suggestedScore))
-
-    const category   = parsed.category || existing.track
-    const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0.6))
-
-    // =========================
-    // 🎯 QUALITY + PRIORITY LOGIC
-    // =========================
-    const qualityFlag = suggestedScore < 40
-
-    let priority = 'low'
-    if (suggestedScore > 80) priority = 'high'
-    else if (suggestedScore > 50) priority = 'medium'
-
-    // =========================
-    // 💾 UPDATE SUBMISSION
-    // =========================
-    await Submission.findByIdAndUpdate(submissionId, {
-      ai: {
-        summary: summaryText.trim(),
-        category,
-        suggestedScore,
-        confidence,
-        priority,
-        qualityFlag,
-        processedAt: new Date(),
-      },
-      aiStatus: 'completed'
+export async function send({ to, subject, html, text }) {
+  try {
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || 'ScoreFlow AI <noreply@scoreflow.ai>',
+      to,
+      subject,
+      html,
+      text: text || stripHtml(html),
     })
 
-    // =========================
-    // 🔗 OPTIONAL: Trigger n8n
-    // =========================
-    if (process.env.N8N_ENRICHMENT_WEBHOOK) {
-      fetch(process.env.N8N_ENRICHMENT_WEBHOOK, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ submissionId }),
-      }).catch(() => {})
-    }
-
+    console.log(`📧 Email sent to ${to}: ${info.messageId}`)
+    return info
   } catch (err) {
-    console.error('AI enrichment failed:', err.message)
-
-    await Submission.findByIdAndUpdate(submissionId, {
-      aiStatus: 'failed'
-    })
+    console.error(`❌ Email failed for ${to}:`, err.message)
+    throw err
   }
+}
+
+// ================================
+// 📌 1. SUBMISSION CREATED
+// ================================
+export async function submissionCreatedEmail({
+  name,
+  email,
+  title,
+  track,
+}) {
+  return send({
+    to: email,
+    subject: `Submission Received — ${title}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+        <p>Hi ${name || 'there'},</p>
+
+        <p>Your submission <strong>${title}</strong> has been received successfully.</p>
+
+        <p>
+          <strong>Track:</strong> ${track || 'Not specified'}<br/>
+          <strong>Status:</strong> Submitted
+        </p>
+
+        <p>Our system is now processing your entry and preparing it for evaluation.</p>
+
+        <p>Next steps:</p>
+        <ul>
+          <li>AI enrichment will run automatically</li>
+          <li>Your project may be prioritized based on quality signals</li>
+          <li>You will be notified again when scoring is complete</li>
+        </ul>
+
+        <p>— ScoreFlow AI</p>
+      </div>
+    `,
+  })
+}
+
+// ================================
+// 📌 2. SUBMISSION SCORED
+// ================================
+export async function submissionScoredEmail({
+  name,
+  email,
+  title,
+  score,
+  track,
+}) {
+  return send({
+    to: email,
+    subject: `Results Ready — ${title}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+        <p>Hi ${name || 'there'},</p>
+
+        <p>Your submission <strong>${title}</strong> has been evaluated.</p>
+
+        <p>
+          <strong>Track:</strong> ${track || 'Not specified'}<br/>
+          <strong>Final Score:</strong> ${score} / 100
+        </p>
+
+        <p>Thank you for participating in the evaluation process.</p>
+
+        <p>— ScoreFlow AI</p>
+      </div>
+    `,
+  })
+}
+
+// ================================
+// 📌 3. EVALUATOR REMINDER
+// ================================
+export async function evaluatorReminderEmail({
+  name,
+  email,
+  pendingCount,
+}) {
+  const queueUrl = `${process.env.CLIENT_URL || ''}/evaluator`
+
+  return send({
+    to: email,
+    subject: `${pendingCount} entr${pendingCount === 1 ? 'y is' : 'ies are'} awaiting your review`,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+        <p>Hi ${name || 'Evaluator'},</p>
+
+        <p>You currently have <strong>${pendingCount}</strong> pending ${
+          pendingCount === 1 ? 'entry' : 'entries'
+        } awaiting review.</p>
+
+        <p>Please return to your evaluation queue to complete scoring.</p>
+
+        <p>
+          <a href="${queueUrl}" style="color: #0ea5e9; text-decoration: none;">
+            Open Evaluation Queue →
+          </a>
+        </p>
+
+        <p>— ScoreFlow AI</p>
+      </div>
+    `,
+  })
+}
+
+// ================================
+// 📌 4. OPTIONAL ERROR EMAIL FALLBACK
+// ================================
+export async function systemErrorEmail({
+  email,
+  source,
+  message,
+}) {
+  return send({
+    to: email,
+    subject: `System Alert — ${source || 'ScoreFlow AI'}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+        <p><strong>System Alert</strong></p>
+
+        <p><strong>Source:</strong> ${source || 'Unknown source'}</p>
+        <p><strong>Message:</strong> ${message || 'No details provided.'}</p>
+
+        <p>This is an automated fallback notification.</p>
+      </div>
+    `,
+  })
 }

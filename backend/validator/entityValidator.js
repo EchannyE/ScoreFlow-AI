@@ -11,8 +11,26 @@ function validateField(fieldName, fieldDefinition, value) {
       return errors;
     }
 
-    if (fieldDefinition.minLength && value.trim().length < fieldDefinition.minLength) {
+    if (
+      fieldDefinition.minLength !== undefined &&
+      value.trim().length < fieldDefinition.minLength
+    ) {
       errors.push(`${fieldName} must be at least ${fieldDefinition.minLength} characters.`);
+    }
+
+    if (
+      fieldDefinition.maxLength !== undefined &&
+      value.trim().length > fieldDefinition.maxLength
+    ) {
+      errors.push(`${fieldName} must be at most ${fieldDefinition.maxLength} characters.`);
+    }
+
+    if (
+      fieldDefinition.pattern &&
+      !(fieldDefinition.pattern instanceof RegExp)
+    ) {
+      errors.push(`${fieldName} has an invalid validation pattern.`);
+      return errors;
     }
 
     if (fieldDefinition.pattern && !fieldDefinition.pattern.test(value)) {
@@ -35,8 +53,10 @@ function validateField(fieldName, fieldDefinition, value) {
     }
   }
 
-  if (fieldDefinition.type === 'boolean' && typeof value !== 'boolean') {
-    errors.push(`${fieldName} must be a boolean.`);
+  if (fieldDefinition.type === 'boolean') {
+    if (typeof value !== 'boolean') {
+      errors.push(`${fieldName} must be a boolean.`);
+    }
   }
 
   if (fieldDefinition.type === 'array') {
@@ -45,11 +65,31 @@ function validateField(fieldName, fieldDefinition, value) {
       return errors;
     }
 
+    if (fieldDefinition.minItems !== undefined && value.length < fieldDefinition.minItems) {
+      errors.push(`${fieldName} must contain at least ${fieldDefinition.minItems} items.`);
+    }
+
+    if (fieldDefinition.maxItems !== undefined && value.length > fieldDefinition.maxItems) {
+      errors.push(`${fieldName} must contain at most ${fieldDefinition.maxItems} items.`);
+    }
+
     if (fieldDefinition.itemType) {
-      const hasInvalidItem = value.some((item) => typeof item !== fieldDefinition.itemType);
+      const hasInvalidItem = value.some((item) => {
+        if (fieldDefinition.itemType === 'array') return !Array.isArray(item);
+        if (fieldDefinition.itemType === 'object') return !isPlainObject(item);
+        return typeof item !== fieldDefinition.itemType;
+      });
+
       if (hasInvalidItem) {
         errors.push(`${fieldName} must only contain ${fieldDefinition.itemType} values.`);
       }
+    }
+  }
+
+  if (fieldDefinition.type === 'object') {
+    if (!isPlainObject(value)) {
+      errors.push(`${fieldName} must be an object.`);
+      return errors;
     }
   }
 
@@ -67,6 +107,10 @@ function validatePayload(definition, payload, { partial = false } = {}) {
 
   const errors = [];
 
+  if (partial && Object.keys(payload).length === 0) {
+    return ['Request body cannot be empty.'];
+  }
+
   if (!partial) {
     definition.requiredOnCreate.forEach((fieldName) => {
       const value = payload[fieldName];
@@ -78,6 +122,7 @@ function validatePayload(definition, payload, { partial = false } = {}) {
 
   Object.entries(payload).forEach(([fieldName, value]) => {
     const fieldDefinition = definition.fields[fieldName];
+
     if (!fieldDefinition) {
       errors.push(`${fieldName} is not a supported field.`);
       return;

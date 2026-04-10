@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { submissionsAPI, evaluationsAPI } from '../../lib/api.jsx'
 import { useUsers } from '../../hooks/useUsers.js'
@@ -10,6 +10,7 @@ import ScoreRing from '../../components/ui/ScoreRing.jsx'
 import Spinner   from '../../components/ui/Spinner.jsx'
 
 const RUBRIC = ['innovation', 'feasibility', 'impact', 'presentation']
+const AUTO_REFRESH_MS = 15000
 
 export default function SubmissionDetail() {
   const { id }   = useParams()
@@ -22,16 +23,46 @@ export default function SubmissionDetail() {
   const [assigning, setAssigning] = useState(false)
   const [assignError, setAssignError] = useState('')
 
-  useEffect(() => {
-    Promise.all([submissionsAPI.get(id), evaluationsAPI.list({ submissionId: id })])
-      .then(([s, e]) => { 
-        const submission = s.data.data ?? s.data
-        setSub(submission)
-        setSelectedEvaluatorId(submission.assignedEvaluatorId?._id ?? '')
-        setEvals(e.data.data ?? e.data) 
-      })
-      .finally(() => setLoading(false))
+  const loadData = useCallback(async ({ background = false } = {}) => {
+    try {
+      if (!background) setLoading(true)
+
+      const [s, e] = await Promise.all([
+        submissionsAPI.get(id),
+        evaluationsAPI.list({ submissionId: id }),
+      ])
+
+      const submission = s.data.data ?? s.data
+      setSub(submission)
+      setSelectedEvaluatorId(submission.assignedEvaluatorId?._id ?? '')
+      setEvals(e.data.data ?? e.data)
+    } finally {
+      if (!background) setLoading(false)
+    }
   }, [id])
+
+  useEffect(() => {
+    void loadData()
+  }, [loadData])
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') {
+        void loadData({ background: true })
+      }
+    }
+
+    const intervalId = window.setInterval(refresh, AUTO_REFRESH_MS)
+
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [loadData])
 
   const handleAssign = async () => {
     if (!selectedEvaluatorId) {

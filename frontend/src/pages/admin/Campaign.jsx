@@ -18,8 +18,18 @@ const INITIAL_FORM = {
 }
 
 export default function AdminCampaigns() {
-  const { campaigns, loading, creating, error: apiError, createCampaign } = useCampaigns()
+  const {
+    campaigns,
+    loading,
+    creating,
+    updating,
+    error: apiError,
+    createCampaign,
+    updateCampaign,
+  } = useCampaigns()
+
   const [isComposerOpen, setIsComposerOpen] = useState(false)
+  const [editingId, setEditingId] = useState('')
   const [form, setForm] = useState(INITIAL_FORM)
   const [formError, setFormError] = useState('')
 
@@ -28,7 +38,30 @@ export default function AdminCampaigns() {
   const resetComposer = () => {
     setForm(INITIAL_FORM)
     setFormError('')
+    setEditingId('')
     setIsComposerOpen(false)
+  }
+
+  const openCreateComposer = () => {
+    setForm(INITIAL_FORM)
+    setFormError('')
+    setEditingId('')
+    setIsComposerOpen(true)
+  }
+
+  const openEditComposer = campaign => {
+    setForm({
+      title: campaign.title ?? '',
+      description: campaign.description ?? '',
+      status: campaign.status ?? 'draft',
+      tracks: Array.isArray(campaign.tracks) ? campaign.tracks.join(', ') : '',
+      deadline: campaign.deadline ? String(campaign.deadline).slice(0, 10) : '',
+      color: campaign.color ?? '#00D4AA',
+    })
+    setFormError('')
+    setEditingId(campaign._id)
+    setIsComposerOpen(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const validateForm = () => {
@@ -38,7 +71,7 @@ export default function AdminCampaigns() {
     return null
   }
 
-  const handleCreate = async event => {
+  const handleSubmit = async event => {
     event.preventDefault()
 
     const validationError = validateForm()
@@ -61,10 +94,16 @@ export default function AdminCampaigns() {
 
     try {
       setFormError('')
-      await createCampaign(payload)
+
+      if (editingId) {
+        await updateCampaign(editingId, payload)
+      } else {
+        await createCampaign(payload)
+      }
+
       resetComposer()
     } catch (e) {
-      setFormError(e.message ?? 'Unable to create campaign')
+      setFormError(e.message ?? 'Unable to save campaign')
     }
   }
 
@@ -96,38 +135,49 @@ export default function AdminCampaigns() {
 
         <Button
           onClick={() => {
-            setFormError('')
-            setIsComposerOpen(open => !open)
+            if (isComposerOpen && !editingId) {
+              resetComposer()
+            } else {
+              openCreateComposer()
+            }
           }}
           className="shadow-lg shadow-green/10 px-6"
         >
           <span className="mr-2 text-lg">+</span>
-          {isComposerOpen ? 'Close Composer' : 'New Campaign'}
+          {isComposerOpen && !editingId ? 'Close Composer' : 'New Campaign'}
         </Button>
       </div>
 
       {isComposerOpen && (
         <Card className="border-green/20 bg-bg-2/80 shadow-[0_20px_50px_rgba(0,0,0,0.24)]">
-          <form className="space-y-6" onSubmit={handleCreate}>
+          <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
               <div>
                 <div className="text-[10px] text-green font-bold uppercase tracking-[0.2em] mb-2">
-                  Campaign Composer
+                  {editingId ? 'Campaign Editor' : 'Campaign Composer'}
                 </div>
                 <h3 className="font-display font-bold text-2xl tracking-tight text-white">
-                  Launch a new evaluation cycle
+                  {editingId ? 'Update campaign configuration' : 'Launch a new evaluation cycle'}
                 </h3>
                 <p className="text-sm text-text-3 mt-2 max-w-2xl">
-                  Create the campaign shell here, then assign evaluators and tune the rubric from the campaign management flow.
+                  {editingId
+                    ? 'Edit campaign metadata, deadline, tracks, and visibility state.'
+                    : 'Create the campaign shell here, then assign evaluators and tune the rubric from the campaign management flow.'}
                 </p>
               </div>
 
               <div className="flex gap-3">
-                <Button type="button" variant="ghost" onClick={resetComposer} disabled={creating}>
+                <Button type="button" variant="ghost" onClick={resetComposer} disabled={creating || updating}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={creating} className="min-w-[180px] justify-center">
-                  {creating ? 'Creating Campaign...' : 'Create Campaign →'}
+                <Button
+                  type="submit"
+                  disabled={creating || updating}
+                  className="min-w-[180px] justify-center"
+                >
+                  {editingId
+                    ? (updating ? 'Saving Changes...' : 'Save Changes →')
+                    : (creating ? 'Creating Campaign...' : 'Create Campaign →')}
                 </Button>
               </div>
             </div>
@@ -227,7 +277,7 @@ export default function AdminCampaigns() {
                 Start with a draft campaign, then add evaluators, rubric settings, and submission rules once the campaign shell exists.
               </p>
             </div>
-            <Button onClick={() => setIsComposerOpen(true)}>
+            <Button onClick={openCreateComposer}>
               <span className="mr-2 text-lg">+</span> Open Campaign Composer
             </Button>
           </div>
@@ -310,7 +360,15 @@ export default function AdminCampaigns() {
                 </div>
               </div>
 
-              <div className="mt-6 flex justify-end">
+              <div className="mt-6 flex justify-between items-center">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => openEditComposer(c)}
+                >
+                  Edit
+                </Button>
+
                 <Link to={`/admin/campaigns/${c._id}`}>
                   <Button
                     variant="ghost"
@@ -327,4 +385,4 @@ export default function AdminCampaigns() {
       </div>
     </div>
   )
-      }
+}

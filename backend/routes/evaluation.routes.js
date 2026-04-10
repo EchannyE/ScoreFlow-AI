@@ -1,4 +1,3 @@
-
 import { Router } from 'express'
 import * as ctrl from '../controllers/evaluation.controller.js'
 import { protect, requireRole } from '../middlewares/auth.middleware.js'
@@ -49,7 +48,7 @@ router.patch(
 router.get(
   '/:id',
   protect,
-  ctrl.get
+  ctrl.getById
 )
 
 // ================================

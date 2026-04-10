@@ -34,7 +34,7 @@ function ErrorMsg({ children }) {
 
 export default function NewSubmission() {
   const navigate = useNavigate()
-  const { campaigns, loading } = useCampaigns({ status: 'active' })
+  const { campaigns, loading } = useCampaigns()
   const { createSubmission } = useSubmissions()
 
   const [form, setForm] = useState({
@@ -205,7 +205,10 @@ export default function NewSubmission() {
               onChange={handleCampaignChange}
               options={[
                 { value: '', label: 'Select a campaign' },
-                ...normalizedCampaigns.map(c => ({ value: c._id, label: c.title })),
+                ...normalizedCampaigns.map(c => ({
+                  value: c._id,
+                  label: `${c.title} (${c.status})`,
+                })),
               ]}
               required
             />
@@ -351,4 +354,4 @@ export default function NewSubmission() {
       </div>
     </div>
   )
-   }
+    }

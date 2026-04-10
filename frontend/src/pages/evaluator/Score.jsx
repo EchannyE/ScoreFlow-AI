@@ -42,6 +42,7 @@ export default function EvaluatorScore() {
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submittedEvaluation, setSubmittedEvaluation] = useState(null)
+  const [submitError, setSubmitError] = useState('')
 
   const weightedScore = useMemo(
     () =>
@@ -61,13 +62,18 @@ export default function EvaluatorScore() {
       ? submission.ai.suggestedScore
       : null
 
-  const scoreDelta = aiScore == null ? null : weightedScore - aiScore
+  const finalWeightedScore =
+    submittedEvaluation?.weightedScore ?? weightedScore
+
+  const scoreDelta =
+    aiScore == null ? null : finalWeightedScore - aiScore
 
   const handleSubmit = async () => {
-    if (!submission) return
+    if (!submission || submitting) return
 
     try {
       setSubmitting(true)
+      setSubmitError('')
 
       const evaluation = await submitScore({
         submissionId,
@@ -77,8 +83,16 @@ export default function EvaluatorScore() {
         status: 'submitted',
       })
 
-      await refetch()
       setSubmittedEvaluation(evaluation)
+
+      // refresh in background, but do not block modal rendering
+      Promise.resolve(refetch?.()).catch(() => {})
+    } catch (e) {
+      setSubmitError(
+        e?.response?.data?.message ||
+        e?.message ||
+        'Failed to submit evaluation.'
+      )
     } finally {
       setSubmitting(false)
     }
@@ -113,6 +127,12 @@ export default function EvaluatorScore() {
       >
         ‹ Back to queue
       </button>
+
+      {submitError && (
+        <div className="mb-4 rounded-xl border border-red/20 bg-red/5 px-4 py-3 text-sm text-red">
+          {submitError}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-5">
         <div className="space-y-4">
@@ -177,10 +197,7 @@ export default function EvaluatorScore() {
 
                 <div className="flex flex-wrap gap-4">
                   <AccessLink href={submission.fields?.projectUrl} label="Open Project" />
-                  <AccessLink
-                    href={submission.fields?.githubUrl}
-                    label="GitHub Repository"
-                  />
+                  <AccessLink href={submission.fields?.githubUrl} label="GitHub Repository" />
                   <AccessLink href={submission.fields?.demoUrl} label="Live Demo" />
                   <AccessLink
                     href={submission.fields?.fileUrl}
@@ -333,7 +350,7 @@ export default function EvaluatorScore() {
                       </div>
                       <div className="mx-auto mb-3 flex w-fit items-center justify-center rounded-full border border-green/15 bg-bg-2/80 p-3">
                         <div className="text-4xl font-display font-black text-white">
-                          {submittedEvaluation.weightedScore ?? weightedScore}
+                          {finalWeightedScore}
                         </div>
                       </div>
                       <div className="text-[11px] text-text-3">
@@ -412,4 +429,4 @@ export default function EvaluatorScore() {
       )}
     </div>
   )
-                          }
+}

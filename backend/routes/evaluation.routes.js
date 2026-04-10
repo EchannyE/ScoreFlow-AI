@@ -4,11 +4,6 @@ import { protect, requireRole } from '../middlewares/auth.middleware.js'
 
 const router = Router()
 
-// ================================
-// 📌 EVALUATOR ROUTES
-// ================================
-
-// Evaluator queue
 router.get(
   '/my-queue',
   protect,
@@ -16,7 +11,6 @@ router.get(
   ctrl.myQueue
 )
 
-// Assigned submission
 router.get(
   '/submission/:submissionId',
   protect,
@@ -24,7 +18,6 @@ router.get(
   ctrl.getAssignedSubmission
 )
 
-// Create evaluation
 router.post(
   '/',
   protect,
@@ -32,7 +25,6 @@ router.post(
   ctrl.create
 )
 
-// Update evaluation (draft → submitted)
 router.patch(
   '/:id',
   protect,
@@ -40,22 +32,12 @@ router.patch(
   ctrl.update
 )
 
-// ================================
-// 📌 SHARED ROUTES
-// ================================
-
-// Get single evaluation
 router.get(
   '/:id',
   protect,
-  ctrl.getById
+  ctrl.get
 )
 
-// ================================
-// 📌 ADMIN ROUTES
-// ================================
-
-// List all evaluations
 router.get(
   '/',
   protect,

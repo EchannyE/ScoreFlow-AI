@@ -23,7 +23,7 @@ function AccessLink({ href, label }) {
 }
 
 export default function MySubmissions() {
-  const { submissions = [], loading } = useMySubmissions()
+  const { submissions = [], loading, error } = useMySubmissions()
 
   if (loading) {
     return (
@@ -44,10 +44,17 @@ export default function MySubmissions() {
             My Submissions
           </h2>
         </div>
+
         <Link to="/submitter/new">
           <Button>+ New Submission</Button>
         </Link>
       </div>
+
+      {error && (
+        <Card className="mb-4 border border-red/20 bg-red/5">
+          <div className="text-sm text-red">{error}</div>
+        </Card>
+      )}
 
       {submissions.length === 0 && (
         <Card className="text-center !py-16">
@@ -68,10 +75,27 @@ export default function MySubmissions() {
           s.fields?.githubUrl,
           s.fields?.demoUrl,
           s.fields?.fileUrl,
+          ...(Array.isArray(s.files) ? s.files.map(file => file?.url) : []),
         ].filter(Boolean).length
 
-        const displayScore = s.finalScore ?? s.ai?.suggestedScore ?? 0
-        const isFinal = s.finalScore != null
+        const isCompleted = s.status === 'completed'
+        const hasFinalScore = s.finalScore != null
+        const hasAiScore = s.ai?.suggestedScore != null
+
+        const displayScore = isCompleted && hasFinalScore
+          ? s.finalScore
+          : hasAiScore
+            ? s.ai.suggestedScore
+            : 0
+
+        const scoreColor = isCompleted && hasFinalScore
+          ? '#00D4AA'
+          : '#F5A623'
+
+        const summaryText =
+          s.ai?.summary ||
+          s.fields?.description ||
+          'Processing…'
 
         return (
           <Card key={s._id} className="mb-3">
@@ -79,7 +103,7 @@ export default function MySubmissions() {
               <ScoreRing
                 score={displayScore}
                 size={52}
-                color={isFinal ? '#00D4AA' : '#F5A623'}
+                color={scoreColor}
               />
 
               <div className="flex-1 min-w-0">
@@ -95,20 +119,25 @@ export default function MySubmissions() {
 
                   <div className="text-right">
                     <Badge type={s.status}>{s.status?.replace('_', ' ')}</Badge>
-                    {isFinal ? (
-                      <div className="text-[11px] text-green mt-1.5">
+
+                    {isCompleted && hasFinalScore ? (
+                      <div className="text-[11px] text-green mt-1.5 font-medium">
                         Final Score: {s.finalScore}
                       </div>
-                    ) : s.ai?.suggestedScore != null ? (
+                    ) : hasAiScore ? (
                       <div className="text-[11px] text-yellow-500 mt-1.5">
-                        AI Score: {s.ai.suggestedScore}
+                        AI Preview: {s.ai.suggestedScore}
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="text-[11px] text-text-3 mt-1.5">
+                        Awaiting score
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <p className="text-xs text-text-2 leading-7 mb-3">
-                  {s.ai?.summary ?? s.fields?.description ?? 'Processing…'}
+                  {summaryText}
                 </p>
 
                 <div className="flex flex-wrap gap-x-4 gap-y-2 mb-3">
@@ -119,6 +148,14 @@ export default function MySubmissions() {
                     href={s.fields?.fileUrl}
                     label={s.fields?.fileName || 'Attachment'}
                   />
+                  {Array.isArray(s.files) &&
+                    s.files.map((file, index) => (
+                      <AccessLink
+                        key={`${file?.url || 'file'}-${index}`}
+                        href={file?.url}
+                        label={file?.name || `File ${index + 1}`}
+                      />
+                    ))}
                 </div>
 
                 <div className="flex flex-wrap gap-3 text-[11px]">
@@ -126,13 +163,7 @@ export default function MySubmissions() {
                     Access links: {accessCount}
                   </span>
 
-                  <span
-                    className={
-                      accessCount > 0
-                        ? 'text-green'
-                        : 'text-red'
-                    }
-                  >
+                  <span className={accessCount > 0 ? 'text-green' : 'text-red'}>
                     {accessCount > 0
                       ? 'Evaluator can access project'
                       : 'No evaluator access link provided'}
@@ -141,6 +172,12 @@ export default function MySubmissions() {
                   {s.aiStatus && (
                     <span className="text-text-3">
                       AI: {s.aiStatus}
+                    </span>
+                  )}
+
+                  {isCompleted && s.scoredAt && (
+                    <span className="text-green">
+                      Scored on {new Date(s.scoredAt).toLocaleDateString()}
                     </span>
                   )}
                 </div>

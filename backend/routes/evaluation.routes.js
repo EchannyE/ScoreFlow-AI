@@ -5,6 +5,10 @@ import { protect, requireRole } from '../middlewares/auth.middleware.js'
 
 const router = Router()
 
+// ================================
+// 📌 EVALUATOR ROUTES
+// ================================
+
 // Evaluator queue
 router.get(
   '/my-queue',
@@ -37,14 +41,22 @@ router.patch(
   ctrl.update
 )
 
+// ================================
+// 📌 SHARED ROUTES
+// ================================
+
 // Get single evaluation
 router.get(
   '/:id',
   protect,
-  ctrl.getById
+  ctrl.get
 )
 
-// List evaluations (admin only)
+// ================================
+// 📌 ADMIN ROUTES
+// ================================
+
+// List all evaluations
 router.get(
   '/',
   protect,

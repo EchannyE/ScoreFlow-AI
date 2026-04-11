@@ -67,13 +67,13 @@ const evaluationSchema = new mongoose.Schema(
 evaluationSchema.index({ submissionId: 1, evaluatorId: 1 }, { unique: true })
 
 // Auto-calculate weighted score before save
-evaluationSchema.pre('save', async function (next) {
+evaluationSchema.pre('save', async function () {
   try {
     if (!this.isModified('scores')) {
       if (this.status === 'submitted' && !this.submittedAt) {
         this.submittedAt = new Date()
       }
-      return next()
+      return
     }
 
     const scores = this.scores || {}
@@ -102,8 +102,6 @@ evaluationSchema.pre('save', async function (next) {
     if (this.status === 'submitted' && !this.submittedAt) {
       this.submittedAt = new Date()
     }
-
-    next()
   } catch (err) {
     const scores = this.scores || {}
     const values = Object.values(scores)
@@ -117,8 +115,6 @@ evaluationSchema.pre('save', async function (next) {
     if (this.status === 'submitted' && !this.submittedAt) {
       this.submittedAt = new Date()
     }
-
-    next()
   }
 })
 

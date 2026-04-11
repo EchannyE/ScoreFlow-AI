@@ -42,7 +42,7 @@ export default function Sidebar({ unread = 0, onNotifClick, onClose }) {
   return (
     <aside
       className="w-[260px] bg-bg-1 border-r border-white/5 flex flex-col
-                 flex-shrink-0 h-full overflow-y-auto"
+                 flex-shrink-0 h-full lg:h-screen overflow-y-auto"
     >
       <div className="px-6 py-6 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3 group cursor-default">

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import Sidebar            from './Sidebar.jsx'
+import Sidebar            from './SideBar.jsx'
 import NotificationDrawer from './NotificationDrawer.jsx'
 import { useApp }         from '../../context/useApp.jsx'
 import { useNotifications } from '../../hooks/useNotification.js'
@@ -10,11 +10,6 @@ export default function MainLayout() {
   const { notifications, unread, markRead } = useNotifications(currentUser)
   const [notifOpen,   setNotifOpen]   = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-
-  const closeAll = () => {
-    setNotifOpen(false)
-    setSidebarOpen(false)
-  }
 
   return (
     <div className="flex min-h-screen bg-bg-0 selection:bg-green/20">
@@ -37,7 +32,7 @@ export default function MainLayout() {
       <div className={`
         fixed top-0 left-0 h-full z-50
         transform transition-transform duration-300 ease-in-out
-        lg:static lg:translate-x-0 lg:z-auto
+        lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:z-auto lg:flex-shrink-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <Sidebar

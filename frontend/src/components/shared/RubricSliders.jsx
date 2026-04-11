@@ -1,17 +1,12 @@
 import React from 'react'
+import { DEFAULT_RUBRIC } from '../../lib/rubric.js'
 
-export const RUBRIC = [
-  { id: 'innovation',   label: 'Innovation',   weight: 25, desc: 'Novelty and creativity' },
-  { id: 'feasibility',  label: 'Feasibility',  weight: 30, desc: 'Technical viability' },
-  { id: 'impact',       label: 'Impact',       weight: 25, desc: 'Social or economic impact' },
-  { id: 'presentation', label: 'Presentation', weight: 20, desc: 'Clarity and communication' },
-]
-
-export default function RubricSliders({ scores, onChange }) {
+export default function RubricSliders({ rubric = DEFAULT_RUBRIC, scores, onChange }) {
   return (
     <div className="space-y-8">
-      {RUBRIC.map(r => {
+      {rubric.map(r => {
         const value = scores[r.id] ?? 0;
+        const description = r.desc || r.description || 'Score this criterion'
         
         return (
           <div key={r.id} className="group relative">
@@ -26,7 +21,7 @@ export default function RubricSliders({ scores, onChange }) {
                     WT: {r.weight}%
                   </span>
                 </div>
-                <p className="text-[11px] text-text-3 font-medium leading-none">{r.desc}</p>
+                <p className="text-[11px] text-text-3 font-medium leading-none">{description}</p>
               </div>
               
               <div className="text-right">

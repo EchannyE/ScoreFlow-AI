@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEvaluatorQueue, useAssignedSubmission } from '../../hooks/useEvaluation.js'
 import Card from '../../components/ui/Card.jsx'
@@ -6,16 +6,14 @@ import Badge from '../../components/ui/Badge.jsx'
 import Button from '../../components/ui/Button.jsx'
 import Input from '../../components/ui/Input.jsx'
 import Spinner from '../../components/ui/Spinner.jsx'
-import RubricSliders, { RUBRIC } from '../../components/shared/RubricSliders.jsx'
+import RubricSliders from '../../components/shared/RubricSliders.jsx'
 import AIScoreReveal from '../../components/evaluation/AiScoreReveal.jsx'
 import ScoreSummary from '../../components/evaluation/ScoreSummary.jsx'
-
-const DEFAULT_SCORES = {
-  innovation: 70,
-  feasibility: 70,
-  impact: 70,
-  presentation: 70,
-}
+import {
+  buildInitialScores,
+  DEFAULT_RUBRIC,
+  normalizeRubric,
+} from '../../lib/rubric.js'
 
 function AccessLink({ href, label }) {
   if (!href) return null
@@ -38,22 +36,55 @@ export default function EvaluatorScore() {
   const { submitScore } = useEvaluatorQueue()
   const { submission, loading, error, refetch } = useAssignedSubmission(submissionId)
 
-  const [scores, setScores] = useState(DEFAULT_SCORES)
+  const rubric = useMemo(
+    () => normalizeRubric(submission?.campaignId?.rubric),
+    [submission?.campaignId?.rubric]
+  )
+  const rubricSignature = useMemo(
+    () => rubric.map(item => `${item.id}:${item.weight}`).join('|'),
+    [rubric]
+  )
+
+  const [scores, setScores] = useState(() => buildInitialScores(DEFAULT_RUBRIC))
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submittedEvaluation, setSubmittedEvaluation] = useState(null)
   const [submitError, setSubmitError] = useState('')
 
+  useEffect(() => {
+    setScores(buildInitialScores(DEFAULT_RUBRIC))
+    setNote('')
+    setSubmittedEvaluation(null)
+    setSubmitError('')
+  }, [submissionId])
+
+  useEffect(() => {
+    setScores(prevScores => {
+      const nextScores = buildInitialScores(rubric)
+      const prevKeys = Object.keys(prevScores)
+      const nextKeys = Object.keys(nextScores)
+
+      if (
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every(key => key in prevScores)
+      ) {
+        return prevScores
+      }
+
+      return nextScores
+    })
+  }, [rubric, rubricSignature])
+
   const weightedScore = useMemo(
     () =>
       Math.round(
-        RUBRIC.reduce(
+        rubric.reduce(
           (acc, rubricItem) =>
             acc + (scores[rubricItem.id] ?? 0) * (rubricItem.weight / 100),
           0
         )
       ),
-    [scores]
+    [rubric, scores]
   )
 
   const aiScore =
@@ -77,7 +108,6 @@ export default function EvaluatorScore() {
 
       const evaluation = await submitScore({
         submissionId,
-        campaignId: submission.campaignId,
         scores,
         note,
         status: 'submitted',
@@ -231,6 +261,7 @@ export default function EvaluatorScore() {
             </div>
 
             <RubricSliders
+              rubric={rubric}
               scores={scores}
               onChange={(key, val) =>
                 setScores(prev => ({ ...prev, [key]: val }))
@@ -251,6 +282,7 @@ export default function EvaluatorScore() {
 
         <div className="flex flex-col gap-3.5">
           <ScoreSummary
+            rubric={rubric}
             scores={scores}
             onSubmit={handleSubmit}
             submitting={submitting}
@@ -303,7 +335,7 @@ export default function EvaluatorScore() {
                   </div>
 
                   <div className="space-y-3">
-                    {RUBRIC.map(rubricItem => (
+                    {rubric.map(rubricItem => (
                       <div
                         key={rubricItem.id}
                         className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3"
@@ -330,12 +362,14 @@ export default function EvaluatorScore() {
                     ))}
                   </div>
 
-                  {note && (
+                  {(submittedEvaluation.note || note) && (
                     <div className="mt-4 rounded-xl border border-white/5 bg-black/10 px-4 py-3">
                       <div className="text-[10px] text-text-3 font-bold uppercase tracking-widest mb-2">
                         Your note
                       </div>
-                      <p className="text-sm leading-relaxed text-text-2">{note}</p>
+                      <p className="text-sm leading-relaxed text-text-2">
+                        {submittedEvaluation.note || note}
+                      </p>
                     </div>
                   )}
                 </div>

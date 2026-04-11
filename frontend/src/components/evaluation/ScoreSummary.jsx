@@ -1,11 +1,11 @@
 import React from 'react'
-import { RUBRIC } from '../shared/RubricSliders.jsx'
+import { DEFAULT_RUBRIC } from '../../lib/rubric.js'
 import ScoreRing from '../ui/ScoreRing.jsx'
 import Button from '../ui/Button.jsx'
 
-export default function ScoreSummary({ scores, onSubmit, submitting }) {
+export default function ScoreSummary({ rubric = DEFAULT_RUBRIC, scores, onSubmit, submitting }) {
   const weighted = Math.round(
-    RUBRIC.reduce((acc, r) => acc + (scores[r.id] ?? 0) * (r.weight / 100), 0)
+    rubric.reduce((acc, r) => acc + (scores[r.id] ?? 0) * (r.weight / 100), 0)
   )
 
   const color =
@@ -45,7 +45,7 @@ export default function ScoreSummary({ scores, onSubmit, submitting }) {
           </div>
 
           <div className="space-y-1.5">
-            {RUBRIC.map(r => {
+            {rubric.map(r => {
               const rawScore = scores[r.id] ?? 0
               const contribution = ((rawScore * r.weight) / 100).toFixed(1)
 
@@ -97,7 +97,7 @@ export default function ScoreSummary({ scores, onSubmit, submitting }) {
           >
             <Button
               onClick={onSubmit}
-              disabled={submitting || weighted === 0}
+              disabled={submitting || !rubric.length}
               className="w-full py-6 font-bold text-sm transition-all active:scale-[0.98]"
             >
               {submitting ? (

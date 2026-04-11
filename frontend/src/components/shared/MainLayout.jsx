@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import Sidebar            from './SideBar.jsx'
+import Sidebar            from './Sidebar.jsx'
 import NotificationDrawer from './NotificationDrawer.jsx'
 import { useApp }         from '../../context/useApp.jsx'
 import { useNotifications } from '../../hooks/useNotification.js'
